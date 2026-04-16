@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Recommendations — FinAdvisor</title>
+  <meta name="description" content="Personalised financial product recommendations based on your AI-assessed risk profile." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <div class="page-wrapper">
+
+    <!-- HEADER -->
+    <header class="site-header">
+      <a href="/" class="logo-text">FinAdvisor</a>
+      <p class="header-tagline">AI-Powered Guidance</p>
+    </header>
+
+    <!-- HERO -->
+    <section class="form-hero hero--results">
+      <h1 class="hero-title">
+        Your <span class="gradient-text">Top</span> Recommendations
+      </h1>
+      <p class="hero-subtitle">
+        Our ML model assessed your risk profile and matched you with the most suitable financial products.
+      </p>
+    </section>
+
+    <!-- PROFILE SUMMARY -->
+    <div class="profile-summary-wrapper">
+      <div class="card profile-summary">
+        <h2 class="summary-title">Your Financial Profile</h2>
+        <div class="profile-grid">
+          <div class="profile-item">
+            <span class="profile-label">Age</span>
+            <span class="profile-value">{{ user_data.age }}</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Monthly Income</span>
+            <span class="profile-value">₹{{ "{:,.0f}".format(user_data.monthly_income) }}</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Credit Score</span>
+            <span class="profile-value">{{ user_data.credit_score }}</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Dependents</span>
+            <span class="profile-value">{{ user_data.dependents }}</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Savings Ratio</span>
+            <span class="profile-value">{{ (user_data.savings_ratio * 100) | round(0) | int }}%</span>
+          </div>
+          <div class="profile-item">
+            <span class="profile-label">Spending Ratio</span>
+            <span class="profile-value">{{ (user_data.spending_to_income_ratio * 100) | round(0) | int }}%</span>
+          </div>
+        </div>
+
+        <!-- Risk Prediction Panel -->
+        <div class="risk-prediction-panel">
+          <div class="risk-prediction-header">
+            <span class="risk-ai-badge">Risk Level Assessment</span>
+          </div>
+          <div class="risk-prediction-body">
+
+            <div class="risk-level-display">
+              <span class="risk-badge risk-badge--large risk-{{ user_data.predicted_risk_profile | lower }}">
+                {{ user_data.predicted_risk_profile }} Risk
+              </span>
+            </div>
+
+            <!-- Probability bars -->
+            <div class="risk-proba-bars">
+              {% for label, prob in user_data.risk_probabilities.items() %}
+              <div class="risk-proba-row">
+                <span class="risk-proba-label">{{ label }}</span>
+                <div class="risk-proba-bar-bg">
+                  <div class="risk-proba-bar-fill risk-proba-fill--{{ label | lower }}"
+                       style="width: {{ (prob * 100) | round(1) }}%;"></div>
+                </div>
+                <span class="risk-proba-pct">{{ (prob * 100) | round(1) }}%</span>
+              </div>
+              {% endfor %}
+            </div>
+
+            <!-- SHAP Chart -->
+            {% if user_data.shap_explanation %}
+            <div class="shap-chart" id="shap-chart">
+              <div class="shap-chart-header">
+                <span class="shap-badge">SHAP · Feature Impact</span>
+                <p class="shap-subtitle">How each feature pushed your risk classification</p>
+              </div>
+
+              {% set shap_abs_max = namespace(v=0.0001) %}
+              {% for val in user_data.shap_explanation.values() %}
+                {% if val | abs > shap_abs_max.v %}{% set shap_abs_max.v = val | abs %}{% endif %}
+              {% endfor %}
+
+              <div class="shap-rows">
+                {% for feature, value in user_data.shap_explanation.items() %}
+                {% set bar_pct   = ((value | abs) / shap_abs_max.v * 100) | round(1) %}
+                {% set direction = 'pos' if value > 0 else 'neg' %}
+                <div class="shap-row">
+                  <span class="shap-feat-name">{{ feature | replace('_', ' ') | title }}</span>
+                  <div class="shap-track">
+                    <div class="shap-bar shap-bar--{{ direction }}"
+                         style="width: {{ bar_pct }}%;"
+                         role="meter"
+                         aria-label="{{ feature }}: {{ '%+.4f' | format(value) }}">
+                      <span class="shap-bar-label">{{ '%+.4f' | format(value) }}</span>
+                    </div>
+                  </div>
+                  <span class="shap-sign shap-sign--{{ direction }}">
+                    {{ '▲ Risk UP' if direction == 'pos' else '▼ Risk DOWN' }}
+                  </span>
+                </div>
+                {% endfor %}
+              </div>
+
+              <div class="shap-legend">
+                <span class="shap-legend-item"><span class="shap-dot shap-dot--pos"></span> Increases risk</span>
+                <span class="shap-legend-item"><span class="shap-dot shap-dot--neg"></span> Reduces risk</span>
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- Explainer accordion -->
+            <div class="explainer-panel" id="explainer-panel">
+              <button class="explainer-toggle" id="explainer-btn"
+                      aria-expanded="false" aria-controls="explainer-body">
+                <span>&#x1F50D;&nbsp; Why am I <strong>{{ user_data.predicted_risk_profile }}</strong> risk?</span>
+                <span class="explainer-chevron">&#9660;</span>
+              </button>
+              <div class="explainer-body" id="explainer-body" role="region">
+
+                {% if user_data.predicted_risk_profile == 'Low' %}
+                  {% set factors = [] %}
+                  {% if user_data.credit_score >= 750 %}{% set _ = factors.append({'dot':'positive','text':'Your credit score of '~user_data.credit_score~' is excellent (750+), signalling strong creditworthiness.'}) %}{% endif %}
+                  {% if user_data.savings_ratio >= 0.20 %}{% set _ = factors.append({'dot':'positive','text':'You save '~((user_data.savings_ratio*100)|round(0)|int)~'% of income — above the recommended 20%.'}) %}{% endif %}
+                  {% if user_data.spending_to_income_ratio <= 0.40 %}{% set _ = factors.append({'dot':'positive','text':'Your spending ratio of '~((user_data.spending_to_income_ratio*100)|round(0)|int)~'% is comfortably low.'}) %}{% endif %}
+                  {% if user_data.dependents <= 1 %}{% set _ = factors.append({'dot':'positive','text':'With '~user_data.dependents~' dependent(s), financial obligations are minimal.'}) %}{% endif %}
+                  {% if factors|length == 0 %}{% set _ = factors.append({'dot':'positive','text':'Your overall financial profile shows a balanced and conservative approach.'}) %}{% endif %}
+
+                {% elif user_data.predicted_risk_profile == 'Medium' %}
+                  {% set factors = [] %}
+                  {% if user_data.credit_score < 650 %}{% set _ = factors.append({'dot':'negative','text':'Credit score '~user_data.credit_score~' is below 650 — the healthy threshold for most products.'}) %}{% elif user_data.credit_score < 750 %}{% set _ = factors.append({'dot':'neutral','text':'Credit score '~user_data.credit_score~' is adequate but has room to reach the excellent 750+ range.'}) %}{% endif %}
+                  {% if user_data.savings_ratio < 0.20 and user_data.savings_ratio >= 0.10 %}{% set _ = factors.append({'dot':'neutral','text':'Savings ratio '~((user_data.savings_ratio*100)|round(0)|int)~'% — increasing toward 20% would lower your risk.'}) %}{% endif %}
+                  {% if user_data.spending_to_income_ratio > 0.40 and user_data.spending_to_income_ratio <= 0.65 %}{% set _ = factors.append({'dot':'neutral','text':'Spending ratio '~((user_data.spending_to_income_ratio*100)|round(0)|int)~'% is moderate — reducing discretionary costs could help.'}) %}{% endif %}
+                  {% if factors|length == 0 %}{% set _ = factors.append({'dot':'neutral','text':'Your profile sits in the balanced zone — a mix of strengths and areas for improvement.'}) %}{% endif %}
+
+                {% else %}
+                  {% set factors = [] %}
+                  {% if user_data.credit_score < 600 %}{% set _ = factors.append({'dot':'negative','text':'Credit score '~user_data.credit_score~' is significantly below the 650 threshold — a key driver of High risk.'}) %}{% endif %}
+                  {% if user_data.savings_ratio < 0.10 %}{% set _ = factors.append({'dot':'negative','text':'Savings ratio '~((user_data.savings_ratio*100)|round(0)|int)~'% is very low — aim for at least 10–20%.'}) %}{% endif %}
+                  {% if user_data.spending_to_income_ratio > 0.65 %}{% set _ = factors.append({'dot':'negative','text':'Spending '~((user_data.spending_to_income_ratio*100)|round(0)|int)~'% of income leaves little buffer for emergencies.'}) %}{% endif %}
+                  {% if user_data.dependents >= 4 %}{% set _ = factors.append({'dot':'negative','text':'Supporting '~user_data.dependents~' dependents adds significant financial obligations.'}) %}{% endif %}
+                  {% if factors|length == 0 %}{% set _ = factors.append({'dot':'negative','text':'A combination of lower savings, elevated spending, and other factors places you in the High risk category.'}) %}{% endif %}
+                {% endif %}
+
+                {% for f in factors %}
+                <div class="explainer-factor">
+                  <span class="explainer-dot explainer-dot--{{ f.dot }}"></span>
+                  <span>{{ f.text }}</span>
+                </div>
+                {% endfor %}
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RECOMMENDATION SECTION -->
+    <main class="results-section">
+
+      {% if recommendations %}
+
+      {# Comparison table — pre-compute best values #}
+      {% set best_score  = recommendations | map(attribute='score')        | max %}
+      {% set best_fee    = recommendations | map(attribute='annual_fee')   | min %}
+      {% set best_rate   = recommendations | map(attribute='interest_rate')| min %}
+      {% set best_tenure = recommendations | map(attribute='tenure_months')| min %}
+      {% set best_income = recommendations | map(attribute='min_income')   | min %}
+
+      <div class="comparison-section">
+        <p class="section-heading">Side-by-Side Comparison</p>
+        <div class="comparison-table-wrapper">
+          <table class="comparison-table" role="table" aria-label="Product comparison">
+            <thead>
+              <tr>
+                <th scope="col">Attribute</th>
+                {% for rec in recommendations %}
+                <th scope="col" class="{{ 'best-match-col' if rec.score == best_score else '' }}">
+                  {% if rec.score == best_score %}<span class="badge-best-match">&#9733; Best Match</span><br />{% endif %}
+                  <span class="cmp-product-name">{{ rec.product_name }}</span>
+                </th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Type</td>
+                {% for rec in recommendations %}<td>{{ rec.product_type }}</td>{% endfor %}
+              </tr>
+              <tr>
+                <td>Risk Level</td>
+                {% for rec in recommendations %}
+                <td><span class="risk-badge risk-{{ rec.risk_level | lower }}">{{ rec.risk_level }}</span></td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <td>Min. Income</td>
+                {% for rec in recommendations %}
+                <td class="{{ 'cell-best' if rec.min_income == best_income else '' }}">
+                  ₹{{ "{:,.0f}".format(rec.min_income) }}
+                </td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <td>Interest Rate</td>
+                {% for rec in recommendations %}
+                <td class="{{ 'cell-best' if rec.interest_rate == best_rate else '' }}">
+                  {% if rec.interest_rate == 0 %}N/A{% else %}{{ (rec.interest_rate * 100) | round(2) }}%{% endif %}
+                </td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <td>Tenure</td>
+                {% for rec in recommendations %}
+                <td class="{{ 'cell-best' if rec.tenure_months == best_tenure else '' }}">
+                  {% if rec.tenure_months == 0 %}N/A{% else %}{{ rec.tenure_months }} mo{% endif %}
+                </td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <td>Annual Fee</td>
+                {% for rec in recommendations %}
+                <td class="{{ 'cell-best' if rec.annual_fee == best_fee else '' }}">
+                  ₹{{ "{:,.0f}".format(rec.annual_fee) }}
+                </td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <td>Match Score</td>
+                {% for rec in recommendations %}
+                <td>
+                  <span class="score-chip {{ 'score-chip--best' if rec.score == best_score else '' }}">
+                    {{ "%.2f" | format(rec.score) }}
+                  </span>
+                </td>
+                {% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recommendation Cards -->
+      <div class="rec-cards-container">
+        {% for rec in recommendations %}
+        <div class="card rec-card rec-card--rank{{ loop.index }}">
+          <div class="rank-badge rank-badge--{{ loop.index }}">Rank #{{ loop.index }}</div>
+          <span class="type-pill">{{ rec.product_type }}</span>
+          <h2 class="rec-name">{{ rec.product_name }}</h2>
+          <div class="score-section">
+            <div class="score-label-row">
+              <span class="score-label">Suitability Score</span>
+              <span class="score-value">{{ "%.2f" | format(rec.score) }}</span>
+            </div>
+            <div class="score-bar-bg">
+              <div class="score-bar-fill" style="width: {{ [rec.score * 100, 100] | min | round(1) }}%;"></div>
+            </div>
+          </div>
+          <p class="rec-reason">{{ rec.reason if rec.reason is string else rec.reason | join(' ') }}</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% else %}
+      <div class="card empty-state">
+        <h2 class="empty-title">No Matching Products Found</h2>
+        <p class="empty-text">We could not find products that match your current income and risk profile. Please adjust your inputs and try again.</p>
+      </div>
+      {% endif %}
+
+      <!-- ══ WHAT-IF SIMULATOR ══════════════════════════════ -->
+      <section class="whatif-section" id="simulation-panel">
+        <div class="whatif-panel">
+          <div class="whatif-header">
+            <div class="whatif-header-left">
+              <span class="whatif-badge">Simulator</span>
+              <h2 class="whatif-title">"What If" Scenario</h2>
+            </div>
+            <p class="whatif-subtitle">Adjust your profile and see how it shifts your recommendations in real time.</p>
+          </div>
+
+          <div class="whatif-body">
+            <div class="whatif-grid" id="whatif-form">
+
+              <!-- Age -->
+              <div class="whatif-slider-group">
+                <div class="whatif-label-row">
+                  <label class="whatif-label" for="sim-age">Age</label>
+                  <span class="whatif-value" id="val-age">{{ user_data.age }}</span>
+                </div>
+                <input type="range" class="whatif-range" id="sim-age"
+                       min="18" max="100" step="1"
+                       value="{{ user_data.age }}" data-orig="{{ user_data.age }}" />
+              </div>
+
+              <!-- Monthly Income -->
+              <div class="whatif-slider-group">
+                <div class="whatif-label-row">
+                  <label class="whatif-label" for="sim-income">Monthly Income</label>
+                  <span class="whatif-value" id="val-income">₹{{ "{:,.0f}".format(user_data.monthly_income) }}</span>
+                </div>
+                <input type="range" class="whatif-range" id="sim-income"
+                       min="0" max="200000" step="1000"
+                       value="{{ user_data.monthly_income }}" data-orig="{{ user_data.monthly_income }}" />
+              </div>
+
+              <!-- Credit Score -->
+              <div class="whatif-slider-group">
+                <div class="whatif-label-row">
+                  <label class="whatif-label" for="sim-credit">Credit Score</label>
+                  <span class="whatif-value" id="val-credit">{{ user_data.credit_score }}</span>
+                </div>
+                <input type="range" class="whatif-range" id="sim-credit"
+                       min="300" max="850" step="1"
+                       value="{{ user_data.credit_score }}" data-orig="{{ user_data.credit_score }}" />
+              </div>
+
+              <!-- Savings Ratio -->
+              <div class="whatif-slider-group">
+                <div class="whatif-label-row">
+                  <label class="whatif-label" for="sim-savings">Savings Ratio</label>
+                  <span class="whatif-value" id="val-savings">{{ (user_data.savings_ratio * 100) | round(0) | int }}%</span>
+                </div>
+                <input type="range" class="whatif-range" id="sim-savings"
+                       min="0" max="1" step="0.01"
+                       value="{{ user_data.savings_ratio }}" data-orig="{{ user_data.savings_ratio }}" />
+              </div>
+
+              <!-- Spending Ratio -->
+              <div class="whatif-slider-group">
+                <div class="whatif-label-row">
+                  <label class="whatif-label" for="sim-spending">Spending Ratio</label>
+                  <span class="whatif-value" id="val-spending">{{ (user_data.spending_to_income_ratio * 100) | round(0) | int }}%</span>
+                </div>
+                <input type="range" class="whatif-range" id="sim-spending"
+                       min="0" max="1" step="0.01"
+                       value="{{ user_data.spending_to_income_ratio }}" data-orig="{{ user_data.spending_to_income_ratio }}" />
+              </div>
+
+              <!-- Dependents -->
+              <div class="whatif-slider-group">
+                <div class="whatif-label-row">
+                  <label class="whatif-label" for="sim-dependents">Dependents</label>
+                  <span class="whatif-value" id="val-dependents">{{ user_data.dependents }}</span>
+                </div>
+                <input type="range" class="whatif-range" id="sim-dependents"
+                       min="0" max="10" step="1"
+                       value="{{ user_data.dependents }}" data-orig="{{ user_data.dependents }}" />
+              </div>
+
+            </div>
+
+            <!-- Actions -->
+            <div class="whatif-actions">
+              <span class="whatif-reset-hint">&#x1F7E1; Yellow = changed from original value</span>
+              <button class="btn-recalculate" id="sim-btn">
+                <span class="spinner"></span>
+                <span class="btn-label">Recalculate</span>
+              </button>
+            </div>
+
+            <div class="whatif-error" id="sim-error"></div>
+
+            <!-- Live Results -->
+            <div class="whatif-results" id="sim-results">
+              <div class="whatif-results-header">
+                <span class="whatif-results-badge">Live Update</span>
+                <span class="whatif-results-title">Simulation Outcomes</span>
+              </div>
+
+              <div class="whatif-risk-row">
+                <span class="whatif-risk-label">Predicted Risk:</span>
+                <span class="risk-badge" id="sim-risk-badge"></span>
+              </div>
+
+              <div class="whatif-confidence">
+                <div class="whatif-confidence-row">
+                  <span class="whatif-confidence-label">Confidence</span>
+                  <span class="whatif-confidence-pct" id="sim-conf-val"></span>
+                </div>
+                <div class="whatif-confidence-bar-bg">
+                  <div class="whatif-confidence-bar-fill" id="sim-conf-bar" style="width:0%"></div>
+                </div>
+              </div>
+
+              <div class="whatif-products">
+                <p class="whatif-products-title">Top Recommended Products</p>
+                <div class="whatif-products-list" id="sim-rec-list"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- Back -->
+      <div class="back-row">
+        <a href="/start" class="btn-secondary" id="back-btn">&#8592; Adjust My Profile</a>
+      </div>
+
+    </main>
+
+    <footer class="site-footer">
+      <p>FinAdvisor &mdash; Not financial advice. For educational purposes only.</p>
+    </footer>
+
+  </div>
+
+  <!-- Explainer toggle -->
+  <script>
+    (function () {
+      var btn  = document.getElementById('explainer-btn');
+      var body = document.getElementById('explainer-body');
+      if (!btn || !body) return;
+      btn.addEventListener('click', function () {
+        var expanded = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!expanded));
+        body.classList.toggle('is-open', !expanded);
+      });
+    })();
+  </script>
+
+  <!-- What-If Simulator -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var sliders = [
+        { id: 'sim-age',        valId: 'val-age',        fmt: function(v){ return v; } },
+        { id: 'sim-income',     valId: 'val-income',     fmt: function(v){ return '₹' + Number(v).toLocaleString('en-IN'); } },
+        { id: 'sim-credit',     valId: 'val-credit',     fmt: function(v){ return v; } },
+        { id: 'sim-savings',    valId: 'val-savings',    fmt: function(v){ return Math.round(v * 100) + '%'; } },
+        { id: 'sim-spending',   valId: 'val-spending',   fmt: function(v){ return Math.round(v * 100) + '%'; } },
+        { id: 'sim-dependents', valId: 'val-dependents', fmt: function(v){ return v; } }
+      ];
+
+      sliders.forEach(function (s) {
+        var inp     = document.getElementById(s.id);
+        var display = document.getElementById(s.valId);
+        var group   = inp.closest('.whatif-slider-group');
+        var origVal = Number(inp.dataset.orig);
+
+        inp.addEventListener('input', function () {
+          var cur = Number(inp.value);
+          display.textContent = s.fmt(cur);
+          group.classList.toggle('is-changed', cur !== origVal);
+        });
+      });
+
+      var btn      = document.getElementById('sim-btn');
+      var errDiv   = document.getElementById('sim-error');
+      var resDiv   = document.getElementById('sim-results');
+      var riskBadge = document.getElementById('sim-risk-badge');
+      var confVal  = document.getElementById('sim-conf-val');
+      var confBar  = document.getElementById('sim-conf-bar');
+      var recList  = document.getElementById('sim-rec-list');
+
+      btn.addEventListener('click', async function () {
+        var payload = {
+          age:                      parseInt(document.getElementById('sim-age').value, 10),
+          monthly_income:           parseFloat(document.getElementById('sim-income').value),
+          credit_score:             parseInt(document.getElementById('sim-credit').value, 10),
+          savings_ratio:            parseFloat(document.getElementById('sim-savings').value),
+          spending_to_income_ratio: parseFloat(document.getElementById('sim-spending').value),
+          dependents:               parseInt(document.getElementById('sim-dependents').value, 10)
+        };
+
+        btn.disabled = true;
+        btn.classList.add('is-loading');
+        errDiv.classList.remove('is-visible');
+
+        try {
+          var response = await fetch('/recommend_ajax', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          var data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(Array.isArray(data.error) ? data.error.join(' ') : data.error);
+          }
+
+          var risk = data.risk_prediction;
+
+          // Risk badge
+          riskBadge.className = 'risk-badge risk-' + risk.risk_level.toLowerCase();
+          riskBadge.textContent = risk.risk_level + ' Risk';
+
+          // Confidence bar
+          var pct = Math.round(risk.confidence * 100);
+          confVal.textContent = pct + '%';
+          confBar.style.width = pct + '%';
+          var barColor = risk.risk_level === 'Low' ? '#22c55e' : (risk.risk_level === 'Medium' ? '#f59e0b' : '#ef4444');
+          confBar.style.background = barColor;
+
+          // Rec list
+          recList.innerHTML = '';
+          if (data.recommendations && data.recommendations.length) {
+            data.recommendations.forEach(function (rec, i) {
+              var card = document.createElement('div');
+              card.className = 'whatif-product-card';
+              card.innerHTML =
+                '<div class="whatif-product-rank">#' + (i + 1) + '</div>' +
+                '<div class="whatif-product-info">' +
+                  '<div class="whatif-product-name">' + rec.product_name + '</div>' +
+                  '<div class="whatif-product-meta">' + rec.product_type + '</div>' +
+                '</div>' +
+                '<div class="whatif-product-score">' + Number(rec.score).toFixed(2) + '</div>';
+              recList.appendChild(card);
+            });
+          } else {
+            recList.innerHTML = '<p class="whatif-product-meta">No products match this scenario.</p>';
+          }
+
+          resDiv.classList.add('is-visible');
+
+        } catch (err) {
+          errDiv.textContent = err.message || 'Something went wrong. Please try again.';
+          errDiv.classList.add('is-visible');
+        } finally {
+          btn.disabled = false;
+          btn.classList.remove('is-loading');
+        }
+      });
+    });
+  </script>
+
+</body>
+</html>

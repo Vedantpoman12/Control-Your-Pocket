@@ -1,0 +1,7 @@
+
+__pycache__/
+.venv/
+venv/
+data/
+eda_files/
+risk_model.pkl

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinAdvisor — Personalized Financial Recommendations</title>
+  <meta name="description" content="Get AI-powered financial product recommendations tailored to your unique risk profile." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <div class="page-wrapper home-page">
+
+    <!-- HEADER -->
+    <header class="site-header">
+      <span class="logo-text">ControlYourPocket</span>
+      <p class="header-tagline">Personal Finance AI</p>
+    </header>
+
+    <!-- HERO -->
+    <section class="home-hero">
+      <div class="home-eyebrow">&#x2728; Powered by Machine Learning</div>
+      <h1 class="home-hero-title">
+        Smart Finances,<br>
+        <span class="gradient-text">Smarter Choices</span>
+      </h1>
+      <p class="home-hero-sub">
+        Our ML model analyses your risk profile and matches you with the most suitable financial products — from mutual funds and SIPs to credit cards and loans.
+      </p>
+      <div class="home-cta-row">
+        <a href="/start" class="btn-primary btn-hero" id="get-started-btn">
+          Product Recommendations &#x2192;
+        </a>
+        <a href="/dashboard" class="btn-secondary btn-hero" id="stock-btn">
+          Daily Tracker 👛
+        </a>
+      </div>
+      <div class="trust-strip">
+        <span>&#x1F512; Secure &amp; Private</span>
+        <span class="trust-dot"></span>
+        <span>No data stored</span>
+        <span class="trust-dot"></span>
+        <span>SHAP Explainability</span>
+        <span class="trust-dot"></span>
+        <span>Instant Results</span>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <div class="home-stats">
+      <div class="stat-card">
+        <span class="stat-value">97%</span>
+        <span class="stat-label">Model Accuracy</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">50+</span>
+        <span class="stat-label">Financial Products</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">3</span>
+        <span class="stat-label">Risk Tiers</span>
+      </div>
+    </div>
+
+    <!-- FEATURES -->
+    <section class="home-features">
+      <p class="section-label">Why FinAdvisor</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-icon">&#x1F9E0;</span>
+          <h3 class="feature-title">ML Risk Prediction</h3>
+          <p class="feature-desc">A trained Random Forest model classifies your risk level as Low, Medium, or High based on your financial profile.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">&#x1F4CA;</span>
+          <h3 class="feature-title">SHAP Explainability</h3>
+          <p class="feature-desc">Understand exactly which factors influenced your risk score with per-feature SHAP value visualisations.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">&#x1F4A1;</span>
+          <h3 class="feature-title">"What If" Simulator</h3>
+          <p class="feature-desc">Adjust sliders to explore how changing your savings rate, income, or credit score would shift your recommendations in real time.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">&#x1F3AF;</span>
+          <h3 class="feature-title">Personalised Matching</h3>
+          <p class="feature-desc">Products are scored using a weighted formula covering income headroom, credit fitness, savings, and spending behaviour.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">&#x1F4CB;</span>
+          <h3 class="feature-title">Side-by-Side Comparison</h3>
+          <p class="feature-desc">View all top recommendations in a clean comparison table highlighting the best values for each metric at a glance.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">&#x26A1;</span>
+          <h3 class="feature-title">Instant Results</h3>
+          <p class="feature-desc">No accounts, no waiting. Enter your profile and receive ranked product recommendations in under a second.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUTH CARD -->
+    <section class="auth-section" id="auth">
+      <div class="card auth-card">
+        <h2 class="auth-title">Get Started</h2>
+        <p class="auth-sub">Sign in or create an account to continue to your personalised profile form.</p>
+
+        <div class="auth-tabs" role="tablist">
+          <button class="auth-tab auth-tab--active" id="tab-login" role="tab" aria-selected="true" aria-controls="form-login">Login</button>
+          <button class="auth-tab" id="tab-signup" role="tab" aria-selected="false" aria-controls="form-signup">Sign Up</button>
+        </div>
+
+        <!-- Login form -->
+        <form id="form-login" action="/authenticate" method="POST">
+          <input type="hidden" name="action" value="login" />
+          <div class="auth-field">
+            <label class="auth-label" for="login-email">Email</label>
+            <input class="auth-input" type="email" id="login-email" name="email" placeholder="you@example.com" required />
+          </div>
+          <div class="auth-field">
+            <label class="auth-label" for="login-password">Password</label>
+            <input class="auth-input" type="password" id="login-password" name="password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn-primary" style="width:100%; justify-content:center; margin-top:8px;" id="login-btn">
+            Login &amp; Continue &#x2192;
+          </button>
+        </form>
+
+        <!-- Signup form -->
+        <form id="form-signup" class="auth-form--hidden" action="/authenticate" method="POST">
+          <input type="hidden" name="action" value="signup" />
+          <div class="auth-field">
+            <label class="auth-label" for="signup-name">Full Name</label>
+            <input class="auth-input" type="text" id="signup-name" name="name" placeholder="Hardik Patel" required />
+          </div>
+          <div class="auth-field">
+            <label class="auth-label" for="signup-email">Email</label>
+            <input class="auth-input" type="email" id="signup-email" name="email" placeholder="you@example.com" required />
+          </div>
+          <div class="auth-field">
+            <label class="auth-label" for="signup-password">Password</label>
+            <input class="auth-input" type="password" id="signup-password" name="password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn-primary" style="width:100%; justify-content:center; margin-top:8px;" id="signup-btn">
+            Create Account &#x2192;
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+      <p>FinAdvisor &mdash; AI-powered financial guidance. Not financial advice.</p>
+    </footer>
+
+  </div>
+
+  <script>
+    (function () {
+      var tabLogin  = document.getElementById('tab-login');
+      var tabSignup = document.getElementById('tab-signup');
+      var fLogin    = document.getElementById('form-login');
+      var fSignup   = document.getElementById('form-signup');
+
+      function activate(tab) {
+        var isLogin = tab === tabLogin;
+        tabLogin.classList.toggle('auth-tab--active', isLogin);
+        tabSignup.classList.toggle('auth-tab--active', !isLogin);
+        tabLogin.setAttribute('aria-selected', isLogin);
+        tabSignup.setAttribute('aria-selected', !isLogin);
+        fLogin.classList.toggle('auth-form--hidden', !isLogin);
+        fSignup.classList.toggle('auth-form--hidden', isLogin);
+      }
+
+      tabLogin.addEventListener('click', function () { activate(tabLogin); });
+      tabSignup.addEventListener('click', function () { activate(tabSignup); });
+    })();
+  </script>
+
+</body>
+</html>

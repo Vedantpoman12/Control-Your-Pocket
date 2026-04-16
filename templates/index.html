@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Profile — FinAdvisor</title>
+  <meta name="description" content="Enter your financial profile to receive personalised AI-powered product recommendations." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <div class="page-wrapper">
+
+    <!-- HEADER -->
+    <header class="site-header">
+      <a href="/" class="logo-text">FinAdvisor</a>
+      <p class="header-tagline">AI-Powered Guidance</p>
+    </header>
+
+    <!-- HERO -->
+    <section class="form-hero">
+      <h1 class="hero-title">
+        Tell Us About <span class="gradient-text">Your Finances</span>
+      </h1>
+      <p class="hero-subtitle">
+        Our ML model will assess your risk profile and match you with the most suitable financial products.
+      </p>
+    </section>
+
+    <!-- FORM -->
+    <form action="/recommend" method="POST" id="profile-form" novalidate>
+
+      {% if errors %}
+      <div class="alert-box" role="alert" id="error-banner">
+        <span>&#x26A0;&#xFE0F;</span>
+        <ul class="error-list">
+          {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="card form-card">
+
+        <!-- Section 1: Personal -->
+        <div class="form-section">
+          <p class="form-section-title">&#x1F464; Personal Details</p>
+          <div class="form-grid">
+
+            <div class="form-group">
+              <label class="form-label" for="age">Age</label>
+              <input class="form-input" type="number" id="age" name="age"
+                     placeholder="e.g. 30" min="18" max="100"
+                     value="{{ form_data.age if form_data else '' }}"
+                     data-min="18" data-max="100" data-label="Age" required />
+              <span class="field-hint">Between 18 and 100</span>
+              <span class="field-error" id="err-age"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="dependents">Dependents</label>
+              <input class="form-input" type="number" id="dependents" name="dependents"
+                     placeholder="e.g. 2" min="0" max="10"
+                     value="{{ form_data.dependents if form_data else '' }}"
+                     data-min="0" data-max="10" data-label="Dependents" required />
+              <span class="field-hint">Number of financial dependents (0–10)</span>
+              <span class="field-error" id="err-dependents"></span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Section 2: Financial -->
+        <div class="form-section">
+          <p class="form-section-title">&#x1F4B0; Financial Details</p>
+          <div class="form-grid">
+
+            <div class="form-group">
+              <label class="form-label" for="monthly_income">Monthly Income (₹)</label>
+              <input class="form-input" type="number" id="monthly_income" name="monthly_income"
+                     placeholder="e.g. 50000" min="1" step="1000"
+                     value="{{ form_data.monthly_income if form_data else '' }}"
+                     data-min="1" data-label="Monthly income" required />
+              <span class="field-hint">Your gross monthly income in Rupees</span>
+              <span class="field-error" id="err-monthly_income"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="credit_score">Credit Score</label>
+              <input class="form-input" type="number" id="credit_score" name="credit_score"
+                     placeholder="e.g. 720" min="300" max="850"
+                     value="{{ form_data.credit_score if form_data else '' }}"
+                     data-min="300" data-max="850" data-label="Credit score" required />
+              <span class="field-hint">CIBIL / credit score (300–850)</span>
+              <span class="field-error" id="err-credit_score"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="savings_ratio">Savings Ratio (0.0 – 1.0)</label>
+              <input class="form-input" type="number" id="savings_ratio" name="savings_ratio"
+                     placeholder="e.g. 0.25" min="0" max="1" step="0.01"
+                     value="{{ form_data.savings_ratio if form_data else '' }}"
+                     data-min="0" data-max="1" data-label="Savings ratio" required />
+              <span class="field-hint">Fraction of income saved — e.g. 0.25 = 25%</span>
+              <span class="field-error" id="err-savings_ratio"></span>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="spending_to_income_ratio">Spending-to-Income Ratio (0.0 – 1.0)</label>
+              <input class="form-input" type="number" id="spending_to_income_ratio" name="spending_to_income_ratio"
+                     placeholder="e.g. 0.55" min="0" max="1" step="0.01"
+                     value="{{ form_data.spending_to_income_ratio if form_data else '' }}"
+                     data-min="0" data-max="1" data-label="Spending ratio" required />
+              <span class="field-hint">Fraction of income spent — e.g. 0.55 = 55%</span>
+              <span class="field-error" id="err-spending_to_income_ratio"></span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="submit-row">
+          <button type="submit" class="btn-primary" id="submit-btn">
+            <span id="btn-text">Analyse My Profile</span>
+            <span id="btn-arrow">&#x2192;</span>
+          </button>
+        </div>
+
+      </div>
+    </form>
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+      <p>FinAdvisor &mdash; Not financial advice. For educational purposes only.</p>
+    </footer>
+
+  </div>
+
+  <script>
+    (function () {
+      // ── Live validation ──────────────────────────────────
+      var inputs = document.querySelectorAll('.form-input[data-label]');
+
+      inputs.forEach(function (inp) {
+        inp.addEventListener('input', function () { validate(inp); });
+        inp.addEventListener('blur',  function () { validate(inp); });
+      });
+
+      function validate(inp) {
+        var val   = parseFloat(inp.value);
+        var min   = inp.dataset.min !== undefined ? parseFloat(inp.dataset.min) : -Infinity;
+        var max   = inp.dataset.max !== undefined ? parseFloat(inp.dataset.max) :  Infinity;
+        var errEl = document.getElementById('err-' + inp.id);
+        var ok    = inp.value !== '' && !isNaN(val) && val >= min && val <= max;
+
+        inp.classList.toggle('input-valid',   ok);
+        inp.classList.toggle('input-invalid', !ok && inp.value !== '');
+
+        if (errEl) {
+          if (!ok && inp.value !== '') {
+            errEl.textContent = inp.dataset.label + ' must be between ' + min + ' and ' + max + '.';
+            errEl.classList.add('is-visible');
+          } else {
+            errEl.classList.remove('is-visible');
+          }
+        }
+        return ok;
+      }
+
+      // ── Submit loading state ─────────────────────────────
+      var form = document.getElementById('profile-form');
+      var btn  = document.getElementById('submit-btn');
+
+      form.addEventListener('submit', function (e) {
+        var allOk = true;
+        inputs.forEach(function (inp) { if (!validate(inp)) allOk = false; });
+        if (!allOk) { e.preventDefault(); return; }
+        btn.classList.add('loading');
+        document.getElementById('btn-text').textContent = 'Analysing…';
+        document.getElementById('btn-arrow').textContent = '⏳';
+      });
+    })();
+  </script>
+
+</body>
+</html>
