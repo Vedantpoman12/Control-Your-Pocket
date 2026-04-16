@@ -1,0 +1,55 @@
+product_id,product_name,product_type,provider,min_income,risk_level,interest_rate,tenure_months,annual_fee,category,key_feature
+MF001,HDFC Top 100 Fund,Equity Mutual Fund,HDFC Asset Management,25000,High,16.5,0,0.43,Growth,Large cap focus
+MF002,Axis Focused 25 Fund,Equity Mutual Fund,Axis Asset Management,50000,High,18.2,0,0.66,Growth,Concentrated portfolio
+MF003,SBI Balanced Advantage,Balanced Mutual Fund,SBI Mutual Fund,50000,Medium,12.0,0,0.65,Hybrid,Dynamic equity exposure
+MF004,ICICI Prudential Nifty Next 50,Equity Mutual Fund,ICICI Prudential,25000,High,17.8,0,0.55,Growth,Mid-cap exposure
+MF005,Mirae Asset Emerging Bluechip,Equity Mutual Fund,Mirae Asset,25000,High,17.5,0,0.71,Growth,Emerging leaders
+MF006,Kotak Standard Multicap Fund,Equity Mutual Fund,Kotak Mahindra,50000,Medium,14.2,0,0.60,Growth,Multi-cap blend
+MF007,UTIMF Dividend Yield Fund,Equity Mutual Fund,UTI,50000,High,13.8,0,0.63,Growth,Dividend focus
+MF008,DSP Top 100 Equity Fund,Equity Mutual Fund,DSP Investment,25000,High,16.8,0,0.65,Growth,Quality focus
+MF009,Aditya Birla Sun Life Equity Fund,Equity Mutual Fund,Aditya Birla Sun Life,50000,High,15.6,0,0.67,Growth,Core portfolio
+MF010,Sundaram Mid-Cap Fund,Equity Mutual Fund,Sundaram Mutual,25000,High,17.2,0,0.61,Growth,Mid-cap focus
+MF011,HDFC Short Term Debt Fund,Debt Mutual Fund,HDFC Asset Management,100000,Low,6.5,0,0.30,Conservative,Capital protection
+MF012,SBI Banking & PSU Fund,Debt Mutual Fund,SBI Mutual Fund,100000,Low,7.2,0,0.35,Conservative,PSU exposure
+MF013,ICICI Prudential Liquid Fund,Debt Mutual Fund,ICICI Prudential,50000,Low,5.8,0,0.25,Conservative,Liquidity focus
+MF014,Axis Ultra Short Fund,Debt Mutual Fund,Axis Asset Management,100000,Low,6.8,0,0.28,Conservative,Low volatility
+MF015,Kotak Low Duration Fund,Debt Mutual Fund,Kotak Mahindra,100000,Low,7.0,0,0.32,Conservative,Bond focus
+INS001,HDFC Life Term Insurance Plan,Life Insurance,HDFC Life,50000,Low,0,240,18000,Protection,20 year term
+INS002,LIC Term Assurance,Life Insurance,LIC,50000,Low,0,240,12000,Protection,Affordable term plan
+INS003,ICICI Prudential LifeTime,Life Insurance,ICICI Prudential,75000,Low,0,240,22000,Protection,Lifetime coverage
+INS004,Bajaj Health Insurance,Health Insurance,Bajaj Allianz,100000,Low,0,12,8500,Protection,Cashless coverage
+INS005,HDFC Ergo Health Insurance,Health Insurance,HDFC Ergo,100000,Low,0,12,6500,Protection,Wide network
+INS006,Max Bupa Health Insurance,Health Insurance,Max Bupa,100000,Low,0,12,7500,Protection,Preventive benefits
+INS007,ICICI Lombard Health Care,Health Insurance,ICICI Lombard,100000,Low,0,12,5500,Protection,Affordable health
+INS008,Aetna Health Insurance,Health Insurance,Aetna,150000,Low,0,12,9000,Protection,Global coverage
+INS009,Star Health Insurance,Health Insurance,Star Health,75000,Low,0,12,4500,Protection,Quick claims
+INS010,LIC Critical Illness Plan,Critical Illness,LIC,100000,Low,0,240,15000,Protection,Disease coverage
+BANK001,HDFC Bank Fixed Deposit,Fixed Deposit,HDFC Bank,0,Low,6.5,60,0,Savings,12 month fixed
+BANK002,SBI Fixed Deposit,Fixed Deposit,State Bank of India,0,Low,6.0,60,0,Savings,Guaranteed return
+BANK003,ICICI Bank Fixed Deposit,Fixed Deposit,ICICI Bank,0,Low,6.25,60,0,Savings,Flexible tenure
+BANK004,Axis Bank Fixed Deposit,Fixed Deposit,Axis Bank,0,Low,6.1,60,0,Savings,24/7 access
+BANK005,Kotak Mahindra Bank FD,Fixed Deposit,Kotak Mahindra Bank,0,Low,6.3,60,0,Savings,Competitive rates
+BANK006,IndusInd Bank Fixed Deposit,Fixed Deposit,IndusInd Bank,0,Low,6.4,60,0,Savings,High yielding
+BANK007,HDFC Bank Savings Account,Savings Account,HDFC Bank,0,Low,3.5,0,0,Savings,Premium account
+BANK008,SBI Savings Account,Savings Account,State Bank of India,0,Low,3.0,0,0,Savings,Government backing
+LOAN001,SBI Personal Loan,Personal Loan,State Bank of India,300000,Medium,10.49,60,0,Credit,No collateral
+LOAN002,HDFC Bank Personal Loan,Personal Loan,HDFC Bank,350000,Medium,10.99,60,0,Credit,Quick approval
+LOAN003,ICICI Bank Personal Loan,Personal Loan,ICICI Bank,300000,Medium,10.75,60,0,Credit,Flexible tenure
+LOAN004,Axis Bank Personal Loan,Personal Loan,Axis Bank,300000,Medium,10.24,60,0,Credit,Instant disbursal
+LOAN005,HDFC Home Loan,Home Loan,HDFC Bank,500000,Medium,7.65,360,5000,Credit,Refinance option
+LOAN006,SBI Home Loan,Home Loan,State Bank of India,400000,Medium,7.35,360,4000,Credit,Government approved
+LOAN007,ICICI Bank Home Loan,Home Loan,ICICI Bank,500000,Medium,7.80,360,5500,Credit,Tech-enabled
+LOAN008,Axis Bank Home Loan,Home Loan,Axis Bank,400000,Medium,7.50,360,4500,Credit,Top-up available
+LOAN009,Bajaj Finance Personal Loan,Personal Loan,Bajaj Finance,250000,Medium,11.50,60,0,Credit,Flexible loan
+LOAN010,Kotak Mahindra Bank Personal Loan,Personal Loan,Kotak Mahindra,300000,Medium,10.99,60,0,Credit,Instant offer
+CARD001,HDFC Bank Credit Card,Credit Card,HDFC Bank,100000,Low,0,0,2500,Credit,10X rewards
+CARD002,ICICI Bank Credit Card,Credit Card,ICICI Bank,100000,Low,0,0,2500,Credit,Travel benefits
+CARD003,Axis Bank Credit Card,Credit Card,Axis Bank,100000,Low,0,0,2000,Credit,Cashback rewards
+CARD004,SBI Credit Card,Credit Card,State Bank of India,100000,Low,0,0,499,Credit,Affordable annual fee
+CARD005,Amazon Pay ICICI Credit Card,Credit Card,ICICI Bank,75000,Low,0,0,0,Credit,Amazon rewards
+CARD006,Flipkart Axis Bank Card,Credit Card,Axis Bank,100000,Low,0,0,500,Credit,Flipkart exclusive
+INVEST001,National Pension Scheme,Retirement Plan,PFRDA,50000,Medium,7.5,0,0,Retirement,Tax benefits
+INVEST002,Public Provident Fund,Savings Scheme,Government,50000,Low,7.1,240,0,Retirement,Safe investment
+INVEST003,Senior Citizen Savings Scheme,Savings Scheme,Post Office,250000,Low,8.2,60,0,Retirement,Senior focused
+INVEST004,Sukanya Samriddhi Yojana,Child Plan,Post Office,100000,Low,7.6,264,0,Retirement,Girl child focused
+INVEST005,Pradhan Mantri Jan Dhan Account,Savings Account,Multiple Banks,0,Low,4.0,0,0,Savings,Government flagship

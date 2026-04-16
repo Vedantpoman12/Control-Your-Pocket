@@ -1,7 +1,11 @@
-
 __pycache__/
 .venv/
 venv/
 data/
 eda_files/
 risk_model.pkl
+datasets/final_cleaned.parquet
+datasets/NIFTY_50_COMPANIES.csv
+datasets/SENSEX_COMPANIES.csv
+datasets/NIFTY_50.csv
+datasets/SENSEX.csv
