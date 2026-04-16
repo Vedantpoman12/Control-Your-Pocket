@@ -1,31 +1,21 @@
 """
-recommender.py
-Two-stage recommendation engine.
+recommender.py  (v2)
+Personal Finance Product Recommender.
 
-products.csv columns:
-  product_id, product_name, product_type, min_income, risk_level,
-  interest_rate, tenure_months, annual_fee
+Products loaded from root products.csv (54 products):
+  MF, Insurance, Loans, Credit Cards, Savings, Retirement
 
-interactions.csv columns:
-  interaction_id, user_id, product_id, interaction_type,
-  interaction_date, interaction_score
-
-transactions.csv columns:
-  transaction_id, user_id, amount, category, payment_mode,
-  merchant_type, timestamp, is_emi
-
-Dependency: pip install shap
+Credit cards loaded from datasets/credit_card_reward.csv (300 cards).
 """
 
-import os
-import pickle
+import os, pickle
 import numpy as np
 import pandas as pd
 import shap
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
 
+# ── Load ML artifacts ─────────────────────────────────────────────────────────
 def _load_artifacts():
     with open(os.path.join(BASE_DIR, "risk_model.pkl"), "rb") as f:
         return pickle.load(f)
@@ -35,71 +25,41 @@ _model        = _art["model"]
 _scaler       = _art["scaler"]
 _risk_encoder = _art["risk_encoder"]
 _feature_cols = _art["feature_cols"]
+_explainer    = shap.TreeExplainer(_model)
 
-# Build the SHAP TreeExplainer once at module load (fast, no re-init per request)
-_explainer = shap.TreeExplainer(_model)
+# ── Load product catalogs ─────────────────────────────────────────────────────
+_products = pd.read_csv(os.path.join(BASE_DIR, "products.csv"))
+_products["product_id"] = _products["product_id"].astype(str)
 
-_products     = pd.read_csv(os.path.join(DATA_DIR, "products.csv"))
-_interactions = pd.read_csv(os.path.join(DATA_DIR, "interactions.csv"))
-_transactions = pd.read_csv(os.path.join(DATA_DIR, "transactions.csv"))
+_cards = pd.read_csv(os.path.join(BASE_DIR, "datasets", "credit_card_reward.csv"))
 
-# Normalise product_id dtype for safe merging
-_products["product_id"]     = _products["product_id"].astype(str)
-_interactions["product_id"] = _interactions["product_id"].astype(str)
-
-
-
-def _predict_risk(age, monthly_income, credit_score,
-                  savings_ratio, spending_to_income_ratio, dependents) -> dict:
-    """
-    Returns:
-    {
-        "risk_level":    "Medium",
-        "confidence":    0.82,
-        "probabilities": {"High": 0.08, "Low": 0.10, "Medium": 0.82},
-        "shap_explanation": {
-            "age":                      +0.05,
-            "monthly_income":           -0.18,
-            "credit_score":             +0.32,
-            "savings_ratio":            -0.12,
-            "spending_to_income_ratio": +0.28,
-            "dependents":               +0.08
-        }
-    }
-    SHAP values are computed on the scaled input to match training.
-    Positive value → pushed predicted risk class UP,
-    Negative value → pushed predicted risk class DOWN.
-    """
-    row = np.array([[age, monthly_income, credit_score,
-                     savings_ratio, spending_to_income_ratio, dependents]])
-    row_scaled  = _scaler.transform(row)
-    risk_idx    = int(_model.predict(row_scaled)[0])
-    risk_proba  = _model.predict_proba(row_scaled)[0]
-
-    risk_level  = _risk_encoder.inverse_transform([risk_idx])[0]
-    confidence  = float(round(risk_proba[risk_idx], 4))
+# ── Risk prediction ───────────────────────────────────────────────────────────
+def _predict_risk(monthly_income, credit_score, dependents,
+                  education_enc, self_employed_enc,
+                  spending_ratio, savings_ratio) -> dict:
+    row = np.array([[monthly_income, credit_score, dependents,
+                     education_enc, self_employed_enc,
+                     spending_ratio, savings_ratio]])
+    row_scaled = _scaler.transform(row)
+    risk_idx   = int(_model.predict(row_scaled)[0])
+    risk_proba = _model.predict_proba(row_scaled)[0]
+    risk_level = _risk_encoder.inverse_transform([risk_idx])[0]
+    confidence = float(round(risk_proba[risk_idx], 4))
 
     probabilities = {
-        cls: float(round(prob, 4))
-        for cls, prob in zip(_risk_encoder.classes_, risk_proba)
+        cls: float(round(p, 4))
+        for cls, p in zip(_risk_encoder.classes_, risk_proba)
     }
 
-    # ── SHAP explanation ─────────────────────────────────────────────────
-    # shap_values shape: (n_samples, n_features, n_classes)  for multi-class
-    # We take the slice for the predicted class so that:
-    #   positive shap value → feature pushed output toward this (predicted) class
-    #   negative shap value → feature pushed output away from this class
-    shap_values = _explainer.shap_values(row_scaled)   # list[n_classes] or ndarray
-    if isinstance(shap_values, list):
-        # scikit-learn return: list of (n_samples, n_features) arrays, one per class
-        class_shap = shap_values[risk_idx][0]
+    shap_vals = _explainer.shap_values(row_scaled)
+    if isinstance(shap_vals, list):
+        class_shap = shap_vals[risk_idx][0]
     else:
-        # newer shap may return (n_samples, n_features, n_classes)
-        class_shap = shap_values[0, :, risk_idx]
+        class_shap = shap_vals[0, :, risk_idx]
 
     shap_explanation = {
-        feat: float(round(float(val), 4))
-        for feat, val in zip(_feature_cols, class_shap)
+        feat: float(round(float(v), 4))
+        for feat, v in zip(_feature_cols, class_shap)
     }
 
     return {
@@ -110,210 +70,168 @@ def _predict_risk(age, monthly_income, credit_score,
     }
 
 
-def _knowledge_filter(risk_level: str, monthly_income: float) -> pd.DataFrame:
-    """
-    Hard rules:
-      Rule 1: user monthly_income >= product min_income
-      Rule 2: predicted risk_level == product risk_level  (relax if no match)
-    """
-    df = _products.copy()
-
-    # Rule 1 – income gate
-    df = df[df["min_income"] <= monthly_income]
-
-    # Rule 2 – risk match (strict first, relax if empty)
-    strict = df[df["risk_level"].str.lower() == risk_level.lower()]
-    return strict.copy() if not strict.empty else df.copy()
-
-
-def _interaction_boost(product_ids: list) -> dict:
-    """
-    Use interactions.csv (implicit feedback — views, clicks, interaction_score)
-    to compute a popularity/engagement boost per product.
-    Returns dict {product_id_str: boost_score (0–1)}
-    """
-    relevant = _interactions[_interactions["product_id"].isin(product_ids)]
-    if relevant.empty:
-        return {pid: 0.0 for pid in product_ids}
-
-    boost = (
-        relevant.groupby("product_id")["interaction_score"]
-        .sum()
-        .reset_index(name="total_interaction_score")
-    )
-    max_score = boost["total_interaction_score"].max()
-    if max_score > 0:
-        boost["boost"] = boost["total_interaction_score"] / max_score
-    else:
-        boost["boost"] = 0.0
-
-    return dict(zip(boost["product_id"], boost["boost"].round(4)))
-
-
-def _score(product: pd.Series, monthly_income: float, credit_score: int,
-           savings_ratio: float, spending_to_income_ratio: float,
-           interaction_boost: float) -> float:
-    """
-    Weighted score (all components 0–1):
-      35 % – income headroom above product min_income
-      25 % – credit score fitness (300–850 scale)
-      20 % – savings ratio (higher = better)
-      10 % – low spending-to-income ratio (lower = better)
-      10 % – interaction boost (implicit engagement from interactions.csv)
-    """
-    min_inc = float(product["min_income"])
-
-    # Income headroom
-    headroom = (monthly_income - min_inc) / (monthly_income + 1)
+def _score_product(product: pd.Series, monthly_income: float,
+                   credit_score: int, savings_ratio: float,
+                   spending_ratio: float) -> float:
+    min_inc = float(product.get("min_income", 0))
+    headroom = (monthly_income - min_inc) / (monthly_income + 1) if monthly_income > min_inc else 0
     income_score = max(0.0, min(1.0, headroom))
 
-    # Credit score normalised (300 worst → 850 best)
-    credit_norm = (credit_score - 300) / 550
-    credit_norm = max(0.0, min(1.0, credit_norm))
-
-    # Savings (0–1)
+    credit_norm = max(0.0, min(1.0, (credit_score - 300) / 600))
     savings_score = max(0.0, min(1.0, savings_ratio))
-
-    # Spending health
-    spending_score = max(0.0, 1.0 - min(spending_to_income_ratio, 1.0))
+    spending_score = max(0.0, 1.0 - min(spending_ratio, 1.0))
 
     return round(
         0.35 * income_score +
-        0.25 * credit_norm +
+        0.30 * credit_norm +
         0.20 * savings_score +
-        0.10 * spending_score +
-        0.10 * interaction_boost,
+        0.15 * spending_score,
         4,
     )
 
 
 def _build_reasons(product: pd.Series, risk_level: str,
                    monthly_income: float, credit_score: int,
-                   savings_ratio: float,
-                   spending_to_income_ratio: float) -> list:
+                   savings_ratio: float, spending_ratio: float) -> list:
     reasons = []
+    product_type = str(product.get("product_type", "")).lower()
+    min_inc = float(product.get("min_income", 0))
+    prod_risk = str(product.get("risk_level", ""))
 
-    # Income eligibility
-    min_inc = float(product["min_income"])
     reasons.append(
-        f"Income eligible: your monthly income ₹{monthly_income:,.0f} "
-        f"meets the minimum requirement of ₹{min_inc:,.0f}."
+        f"Income eligible: your monthly income Rs{monthly_income:,.0f} "
+        f"meets the minimum requirement of Rs{min_inc:,.0f}."
     )
-
-    # Risk match
-    prod_risk = product["risk_level"]
     if prod_risk.lower() == risk_level.lower():
-        reasons.append(
-            f"Risk match: product risk level '{prod_risk}' aligns with "
-            f"your predicted risk profile '{risk_level}'."
-        )
+        reasons.append(f"Risk match: product risk level '{prod_risk}' aligns with your profile '{risk_level}'.")
     else:
-        reasons.append(
-            f"Closest available match — your predicted risk is '{risk_level}' "
-            f"and this product targets '{prod_risk}'."
-        )
+        reasons.append(f"Closest match: your risk is '{risk_level}', product targets '{prod_risk}'.")
 
-    # Credit score
     if credit_score >= 750:
         reasons.append("Excellent credit score (750+) strongly supports eligibility.")
-    elif credit_score >= 650:
-        reasons.append("Good credit score (650–749) supports this recommendation.")
+    elif credit_score >= 600:
+        reasons.append(f"Good credit score ({credit_score}) qualifies you for standard rates.")
     else:
-        reasons.append("Credit score is below 650 — improving it will unlock better products.")
+        reasons.append(f"Credit score ({credit_score}) is below 600 — improving it unlocks better products.")
 
-    # Spending behaviour
-    if spending_to_income_ratio < 0.3:
-        reasons.append("Low spending-to-income ratio indicates strong financial discipline.")
-    elif spending_to_income_ratio < 0.6:
-        reasons.append("Moderate spending-to-income ratio.")
-    else:
-        reasons.append("High spending-to-income ratio — reducing expenses may improve eligibility.")
+    if "mutual" in product_type or "equity" in product_type or "debt" in product_type:
+        if savings_ratio >= 0.2:
+            reasons.append(f"Strong savings ratio ({savings_ratio:.0%}) supports regular SIP investments.")
+        else:
+            reasons.append("Start small with a monthly SIP — even Rs500/month compounds well.")
+    elif "insurance" in product_type or "term" in product_type or "health" in product_type:
+        reasons.append("Insurance protects your financial plan from unexpected medical or life events.")
+    elif "loan" in product_type:
+        if spending_ratio < 0.4:
+            reasons.append(f"Low spending ratio ({spending_ratio:.0%}) indicates good loan repayment capacity.")
+        else:
+            reasons.append("Ensure EMI stays under 40% of income for healthy cash flow.")
 
-    # Savings
-    if savings_ratio >= 0.2:
-        reasons.append(f"Healthy savings ratio ({savings_ratio:.0%}) shows good financial planning.")
-    elif savings_ratio >= 0.1:
-        reasons.append(f"Moderate savings ratio ({savings_ratio:.0%}).")
-    else:
-        reasons.append(f"Low savings ratio ({savings_ratio:.0%}) — consider increasing savings.")
+    interest_rate = product.get("interest_rate", 0)
+    annual_fee = product.get("annual_fee", 0)
+    tenure = product.get("tenure_months", 0)
+    key_feature = product.get("key_feature", "")
 
-    # Product details
-    reasons.append(
-        f"Product details: {product['product_type']} | "
-        f"Interest rate: {product['interest_rate']}% | "
-        f"Tenure: {product['tenure_months']} months | "
-        f"Annual fee: ₹{product['annual_fee']:,.0f}."
-    )
+    detail_parts = []
+    if interest_rate > 0:
+        detail_parts.append(f"Rate: {interest_rate}%")
+    if annual_fee > 0:
+        detail_parts.append(f"Annual fee: Rs{annual_fee:,.0f}")
+    if tenure > 0:
+        detail_parts.append(f"Tenure: {tenure} months")
+    if key_feature:
+        detail_parts.append(f"Key: {key_feature}")
+    if detail_parts:
+        reasons.append(" | ".join(detail_parts))
 
     return reasons
 
 
+# ── Credit card recommender ───────────────────────────────────────────────────
+CATEGORY_MAP = {
+    "Food":          "dining",
+    "Travel":        "travel",
+    "Shopping":      "shopping",
+    "Fuel":          "fuel",
+    "Groceries":     "groceries",
+    "Entertainment": "dining",
+    "Online":        "online_spends",
+    "Bills":         "fuel",
+    "Health":        "shopping",
+    "Other":         "shopping",
+}
+
+def get_card_recommendations(top_spending_category: str = "Shopping",
+                              max_annual_fee: float = 5000,
+                              top_n: int = 3) -> list:
+    mapped = CATEGORY_MAP.get(top_spending_category, "shopping")
+    filtered = _cards[
+        (_cards["primary_usage_category"] == mapped) &
+        (_cards["annual_charges_in_inr"] <= max_annual_fee)
+    ].copy()
+    if filtered.empty:
+        filtered = _cards[_cards["annual_charges_in_inr"] <= max_annual_fee].copy()
+    if filtered.empty:
+        filtered = _cards.copy()
+
+    filtered = filtered.sort_values("points_accumulation_rate", ascending=False).head(top_n)
+
+    results = []
+    for _, row in filtered.iterrows():
+        results.append({
+            "card_name":      str(row["credit_card_name"]),
+            "bank":           str(row["bank_name"]),
+            "reward_type":    str(row["reward_type"]),
+            "speciality":     str(row["speciality"]),
+            "points_rate":    float(row["points_accumulation_rate"]),
+            "best_category":  str(row["primary_usage_category"]),
+            "annual_fee":     float(row["annual_charges_in_inr"]),
+            "reason": (
+                f"Best for {row['primary_usage_category']} spending with "
+                f"{row['points_accumulation_rate']}x points. "
+                f"Annual fee: Rs{row['annual_charges_in_inr']:,.0f}. "
+                f"Speciality: {row['speciality'].replace('_', ' ')}."
+            ),
+        })
+    return results
+
+
+# ── Main recommendation entry point ──────────────────────────────────────────
 def get_recommendations(age: int, monthly_income: float, credit_score: int,
-                        savings_ratio: float, spending_to_income_ratio: float,
-                        dependents: int, top_n: int = 3) -> dict:
-    """
-    Returns:
-    {
-        "risk_prediction": {
-            "risk_level":    "Medium",
-            "confidence":    0.82,
-            "probabilities": {"High": 0.08, "Low": 0.10, "Medium": 0.82},
-            "shap_explanation": {
-                "age":                      +0.05,
-                "monthly_income":           -0.18,
-                "credit_score":             +0.32,
-                "savings_ratio":            -0.12,
-                "spending_to_income_ratio": +0.28,
-                "dependents":               +0.08
-            }
-        },
-        "recommendations": [
-            {
-                "product_id":    "P01",
-                "product_name":  "Credit Card",
-                "product_type":  "Credit Card",
-                "risk_level":    "Medium",
-                "min_income":    25000,
-                "interest_rate": 0.0,
-                "tenure_months": 0,
-                "annual_fee":    500,
-                "score":         0.74,
-                "reasons":       ["...", "..."]
-            },
-            ...
-        ]
-    }
-    """
+                        savings_ratio: float, spending_ratio: float,
+                        dependents: int, education: str = "Graduate",
+                        self_employed: bool = False,
+                        top_spending_category: str = "Shopping",
+                        max_card_fee: float = 5000,
+                        top_n: int = 3) -> dict:
+
+    education_enc     = 1 if education == "Graduate" else 0
+    self_employed_enc = 1 if self_employed else 0
 
     risk_prediction = _predict_risk(
-        age, monthly_income, credit_score,
-        savings_ratio, spending_to_income_ratio, dependents
+        monthly_income, credit_score, dependents,
+        education_enc, self_employed_enc,
+        spending_ratio, savings_ratio
     )
     risk_level = risk_prediction["risk_level"]
 
-
-    eligible = _knowledge_filter(risk_level, monthly_income)
+    # Filter products by income and risk
+    df = _products.copy()
+    df = df[df["min_income"] <= monthly_income]
+    strict = df[df["risk_level"].str.lower() == risk_level.lower()]
+    eligible = strict if not strict.empty else df
 
     if eligible.empty:
-        return {"risk_prediction": risk_prediction, "recommendations": []}
-
-
-    product_ids = eligible["product_id"].tolist()
-    boosts      = _interaction_boost(product_ids)
+        return {
+            "risk_prediction":  risk_prediction,
+            "recommendations":  [],
+            "card_recommendations": get_card_recommendations(top_spending_category, max_card_fee, top_n),
+        }
 
     eligible = eligible.copy()
-    eligible["interaction_boost"] = eligible["product_id"].map(
-        lambda pid: boosts.get(str(pid), 0.0)
-    )
     eligible["score"] = eligible.apply(
-        lambda row: _score(
-            row, monthly_income, credit_score,
-            savings_ratio, spending_to_income_ratio,
-            row["interaction_boost"]
-        ),
-        axis=1,
+        lambda r: _score_product(r, monthly_income, credit_score, savings_ratio, spending_ratio), axis=1
     )
-
     top = eligible.sort_values("score", ascending=False).head(top_n)
 
     recommendations = []
@@ -322,20 +240,21 @@ def get_recommendations(age: int, monthly_income: float, credit_score: int,
             "product_id":    str(prod["product_id"]),
             "product_name":  str(prod["product_name"]),
             "product_type":  str(prod["product_type"]),
+            "provider":      str(prod.get("provider", "")),
             "risk_level":    str(prod["risk_level"]),
             "min_income":    float(prod["min_income"]),
             "interest_rate": float(prod["interest_rate"]),
             "tenure_months": int(prod["tenure_months"]),
             "annual_fee":    float(prod["annual_fee"]),
+            "category":      str(prod.get("category", "")),
+            "key_feature":   str(prod.get("key_feature", "")),
             "score":         float(prod["score"]),
-            "reasons":       _build_reasons(
-                                 prod, risk_level, monthly_income,
-                                 credit_score, savings_ratio,
-                                 spending_to_income_ratio
-                             ),
+            "reasons":       _build_reasons(prod, risk_level, monthly_income,
+                                            credit_score, savings_ratio, spending_ratio),
         })
 
     return {
-        "risk_prediction": risk_prediction,
-        "recommendations": recommendations,
+        "risk_prediction":    risk_prediction,
+        "recommendations":    recommendations,
+        "card_recommendations": get_card_recommendations(top_spending_category, max_card_fee, top_n),
     }

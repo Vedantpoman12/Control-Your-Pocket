@@ -1,134 +1,54 @@
 """
-app.py
-Flask entry-point for the Personalized Financial Product Recommendation System.
-The risk level is now predicted by the ML model – the user does NOT select it.
+app.py  (v2)  — Flask REST API for Control Your Pocket
+All responses are JSON. React frontend calls these endpoints.
 """
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify
-from recommender import get_recommendations
-from stock_advisor import get_stock_recommendation
-from expense_manager import get_daily_finance_report, add_transaction
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from recommender import get_recommendations, get_card_recommendations
+import pandas as pd, os, json
+from datetime import datetime
 
 app = Flask(__name__)
+CORS(app)   # allow React (port 5173) to call Flask (port 5000)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+EXPENSES_FILE = os.path.join(BASE_DIR, "data", "expenses.json")
+
+os.makedirs(os.path.join(BASE_DIR, "data"), exist_ok=True)
+if not os.path.exists(EXPENSES_FILE):
+    with open(EXPENSES_FILE, "w") as f:
+        json.dump([], f)
 
 
-@app.route("/", methods=["GET"])
-def home():
-    """Render the landing page with login and signup."""
-    return render_template("home.html")
-
-
-@app.route("/start", methods=["GET"])
-def index():
-    """Render the user input form."""
-    return render_template("index.html")
-
-
-@app.route("/authenticate", methods=["POST"])
-def authenticate():
-    """Handle login/signup form submissions and continue to the recommendation form."""
-    return redirect(url_for("index"))
-
-
-@app.route("/recommend", methods=["POST"])
+# ── /api/recommend ─────────────────────────────────────────────────────────────
+@app.route("/api/recommend", methods=["POST"])
 def recommend():
-    """Receive form data, run two-stage ML recommender, display results."""
-    try:
-        age                 = int(request.form.get("age", 0))
-        monthly_income      = float(request.form.get("monthly_income", 0))
-        credit_score        = int(request.form.get("credit_score", 300))
-        savings_ratio       = float(request.form.get("savings_ratio", 0))
-        spending_to_income  = float(request.form.get("spending_to_income_ratio", 0))
-        dependents          = int(request.form.get("dependents", 0))
-
-        # ── Validation ────────────────────────────────────────────────────
-        errors = []
-        if not (18 <= age <= 100):
-            errors.append("Age must be between 18 and 100.")
-        if monthly_income <= 0:
-            errors.append("Monthly income must be a positive number.")
-        if not (300 <= credit_score <= 850):
-            errors.append("Credit score must be between 300 and 850.")
-        if not (0.0 <= savings_ratio <= 1.0):
-            errors.append("Savings ratio must be between 0.0 and 1.0.")
-        if not (0.0 <= spending_to_income <= 1.0):
-            errors.append("Spending-to-income ratio must be between 0.0 and 1.0.")
-        if not (0 <= dependents <= 10):
-            errors.append("Dependents must be between 0 and 10.")
-
-        if errors:
-            return render_template("index.html", errors=errors,
-                                   form_data=request.form)
-
-        # ── Two-stage ML ──────────────────────────────────────────────────
-        result = get_recommendations(
-            age=age,
-            monthly_income=monthly_income,
-            credit_score=credit_score,
-            savings_ratio=savings_ratio,
-            spending_to_income_ratio=spending_to_income,
-            dependents=dependents,
-            top_n=3,
-        )
-
-        risk_prediction = result["risk_prediction"]   # dict: risk_level, confidence, probabilities
-        recommendations = result["recommendations"]   # list of product dicts
-
-        user_data = {
-            "age":                      age,
-            "monthly_income":           monthly_income,
-            "credit_score":             credit_score,
-            "predicted_risk_profile":   risk_prediction["risk_level"],
-            "risk_confidence":          risk_prediction["confidence"],
-            "risk_probabilities":       risk_prediction["probabilities"],
-            "shap_explanation":         risk_prediction["shap_explanation"],
-            "savings_ratio":            savings_ratio,
-            "spending_to_income_ratio": spending_to_income,
-            "dependents":               dependents,
-        }
-
-        return render_template(
-            "results.html",
-            recommendations=recommendations,
-            user_data=user_data,
-        )
-
-    except (ValueError, TypeError) as exc:
-        return render_template(
-            "index.html",
-            errors=[f"Invalid input: {exc}"],
-            form_data=request.form,
-        )
-
-
-@app.route("/recommend_ajax", methods=["POST"])
-def recommend_ajax():
-    """AJAX endpoint – accepts JSON body, returns JSON result (no template)."""
+    """
+    Body JSON:
+      age, monthly_income, credit_score, savings_ratio, spending_ratio,
+      dependents, education, self_employed, top_spending_category, max_card_fee
+    """
     try:
         data = request.get_json(force=True, silent=True) or {}
 
-        age                = int(data.get("age", 0))
-        monthly_income     = float(data.get("monthly_income", 0))
-        credit_score       = int(data.get("credit_score", 300))
-        savings_ratio      = float(data.get("savings_ratio", 0))
-        spending_to_income = float(data.get("spending_to_income_ratio", 0))
-        dependents         = int(data.get("dependents", 0))
+        age                    = int(data.get("age", 25))
+        monthly_income         = float(data.get("monthly_income", 50000))
+        credit_score           = int(data.get("credit_score", 700))
+        savings_ratio          = float(data.get("savings_ratio", 0.2))
+        spending_ratio         = float(data.get("spending_ratio", 0.5))
+        dependents             = int(data.get("dependents", 0))
+        education              = str(data.get("education", "Graduate"))
+        self_employed          = bool(data.get("self_employed", False))
+        top_spending_category  = str(data.get("top_spending_category", "Shopping"))
+        max_card_fee           = float(data.get("max_card_fee", 5000))
 
-        # ── Validation ────────────────────────────────────────────────────
         errors = []
-        if not (18 <= age <= 100):
-            errors.append("Age must be between 18 and 100.")
-        if monthly_income <= 0:
-            errors.append("Monthly income must be a positive number.")
-        if not (300 <= credit_score <= 850):
-            errors.append("Credit score must be between 300 and 850.")
-        if not (0.0 <= savings_ratio <= 1.0):
-            errors.append("Savings ratio must be between 0.0 and 1.0.")
-        if not (0.0 <= spending_to_income <= 1.0):
-            errors.append("Spending-to-income ratio must be between 0.0 and 1.0.")
-        if not (0 <= dependents <= 10):
-            errors.append("Dependents must be between 0 and 10.")
-
+        if not 18 <= age <= 100:    errors.append("Age must be 18–100.")
+        if monthly_income <= 0:     errors.append("Monthly income must be positive.")
+        if not 300 <= credit_score <= 900: errors.append("Credit score must be 300–900.")
+        if not 0 <= savings_ratio <= 1:    errors.append("Savings ratio must be 0–1.")
+        if not 0 <= spending_ratio <= 5:   errors.append("Spending ratio must be 0–5.")
         if errors:
             return jsonify({"error": errors}), 400
 
@@ -137,48 +57,85 @@ def recommend_ajax():
             monthly_income=monthly_income,
             credit_score=credit_score,
             savings_ratio=savings_ratio,
-            spending_to_income_ratio=spending_to_income,
+            spending_ratio=spending_ratio,
             dependents=dependents,
+            education=education,
+            self_employed=self_employed,
+            top_spending_category=top_spending_category,
+            max_card_fee=max_card_fee,
             top_n=3,
         )
-
         return jsonify(result)
 
     except (ValueError, TypeError) as exc:
         return jsonify({"error": str(exc)}), 400
 
 
-@app.route("/stock_analysis", methods=["GET", "POST"])
-def stock_analysis():
-    """Stock analysis page - allows users to enter a ticker and get AI analysis."""
-    stock_data = None
-    error = None
+# ── /api/cards ────────────────────────────────────────────────────────────────
+@app.route("/api/cards", methods=["GET"])
+def cards():
+    category = request.args.get("category", "Shopping")
+    max_fee  = float(request.args.get("max_fee", 5000))
+    top_n    = int(request.args.get("top_n", 10))
+    return jsonify(get_card_recommendations(category, max_fee, top_n))
+
+
+# ── /api/products ─────────────────────────────────────────────────────────────
+@app.route("/api/products", methods=["GET"])
+def products():
+    df = pd.read_csv(os.path.join(BASE_DIR, "products.csv"))
+    ptype    = request.args.get("type", None)
+    category = request.args.get("category", None)
+    if ptype:
+        df = df[df["product_type"].str.contains(ptype, case=False, na=False)]
+    if category:
+        df = df[df["category"].str.lower() == category.lower()]
+    return jsonify(df.fillna("").to_dict(orient="records"))
+
+
+# ── /api/expenses (GET + POST) ────────────────────────────────────────────────
+@app.route("/api/expenses", methods=["GET", "POST"])
+def expenses():
+    with open(EXPENSES_FILE) as f:
+        all_expenses = json.load(f)
+
     if request.method == "POST":
-        ticker = request.form.get("ticker", "").strip().upper()
-        if not ticker:
-            error = "Please enter a valid ticker symbol (e.g., AAPL, RELIANCE.NS)"
-        else:
-            result = get_stock_recommendation(ticker)
-            if "error" in result:
-                error = result["error"]
-            else:
-                stock_data = result
-    
-    return render_template("stock_analysis.html", stock_data=stock_data, error=error)
+        data = request.get_json(force=True, silent=True) or {}
+        entry = {
+            "id":        len(all_expenses) + 1,
+            "amount":    float(data.get("amount", 0)),
+            "category":  str(data.get("category", "Other")),
+            "merchant":  str(data.get("merchant", "")),
+            "note":      str(data.get("note", "")),
+            "timestamp": datetime.now().isoformat(),
+        }
+        all_expenses.append(entry)
+        with open(EXPENSES_FILE, "w") as f:
+            json.dump(all_expenses, f, indent=2)
+        return jsonify({"success": True, "entry": entry}), 201
+
+    return jsonify(all_expenses)
 
 
-@app.route("/dashboard", methods=["GET", "POST"])
-def dashboard():
-    """Personal Finance Dashboard - 'Control Your Pocket'."""
-    if request.method == "POST":
-        amount = float(request.form.get("amount", 0))
-        category = request.form.get("category", "")
-        merchant = request.form.get("merchant", "")
-        payment_mode = request.form.get("payment_mode", "UPI")
-        add_transaction("U01", amount, category, payment_mode, merchant)
+# ── /api/summary ──────────────────────────────────────────────────────────────
+@app.route("/api/summary", methods=["GET"])
+def summary():
+    with open(EXPENSES_FILE) as f:
+        all_expenses = json.load(f)
+    if not all_expenses:
+        return jsonify({"total": 0, "by_category": {}, "count": 0})
 
-    report = get_daily_finance_report("U01")
-    return render_template("dashboard.html", report=report)
+    total = sum(e["amount"] for e in all_expenses)
+    by_cat = {}
+    for e in all_expenses:
+        by_cat[e["category"]] = by_cat.get(e["category"], 0) + e["amount"]
+
+    return jsonify({
+        "total":       round(total, 2),
+        "by_category": {k: round(v, 2) for k, v in by_cat.items()},
+        "count":       len(all_expenses),
+        "recent":      all_expenses[-5:][::-1],
+    })
 
 
 if __name__ == "__main__":
