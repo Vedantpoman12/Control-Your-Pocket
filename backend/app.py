@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from models import db, User, CartItem
 from recommender import get_recommendations, analyze_cart_with_ollama
+from financial_recommender import get_financial_recommendations
 import os
 
 app = Flask(__name__)
@@ -113,6 +114,12 @@ def recommend():
         is_student=is_student, 
         gender=gender
     )
+    return jsonify(result)
+
+@app.route("/api/financial/recommend", methods=["POST"])
+def financial_recommend():
+    data = request.get_json() or {}
+    result = get_financial_recommendations(data)
     return jsonify(result)
 
 if __name__ == "__main__":
