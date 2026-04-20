@@ -22,6 +22,10 @@ const TAG_COLORS = {
   'Savings Account': 'bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/20',
   'Personal Loan': 'bg-[#ef4444]/10 text-[#ef4444] border-[#ef4444]/20',
   'UPI / Wallet':  'bg-[#06b6d4]/10 text-[#06b6d4] border-[#06b6d4]/20',
+  'Mutual Fund': 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  'Insurance': 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+  'Fixed Deposit': 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+  'Wealth Management': 'bg-violet-500/10 text-violet-600 border-violet-500/20',
 };
 
 const PRODUCT_ICONS = {
@@ -30,6 +34,10 @@ const PRODUCT_ICONS = {
   'Savings Account': <Landmark size={20} />,
   'Personal Loan': <IndianRupee size={20} />,
   'UPI / Wallet':  <Zap size={20} />,
+  'Mutual Fund': <TrendingUp size={20} />,
+  'Insurance': <ShieldCheck size={20} />,
+  'Fixed Deposit': <Target size={20} />,
+  'Wealth Management': <Sparkles size={20} />,
 };
 
 const OPP_ICON_MAP = {
@@ -133,7 +141,7 @@ export default function FinancialAnalyzer() {
   };
 
   // ── Filter tabs ────────────────────────────────────────────────────────────
-  const productTypes = ['all', 'Credit Card', 'Debit Card', 'Savings Account', 'Personal Loan', 'UPI / Wallet'];
+  const productTypes = ['all', 'Credit Card', 'Mutual Fund', 'Insurance', 'Savings Account', 'Personal Loan', 'Fixed Deposit', 'Wealth Management'];
   const filteredRecs = analysis?.recommendations?.filter(r =>
     activeTab === 'all' || r.type === activeTab
   ) || [];
