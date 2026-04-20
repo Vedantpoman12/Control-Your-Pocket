@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 export default function Dashboard() {
   const { cart, user, fetchUser, fetchCart } = useCartStore();
   const [recommendations, setRecommendations] = useState(null);
+  const [finRecs, setFinRecs] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export default function Dashboard() {
       await fetchCart();
 
       try {
+        // Fetch Shopping Recommendations
         const res = await fetch('http://localhost:5000/api/recommend', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -26,6 +28,15 @@ export default function Dashboard() {
         });
         const data = await res.json();
         setRecommendations(data);
+
+        // Fetch Full Financial Recommendations
+        const finRes = await fetch('http://localhost:5000/api/financial/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        const finData = await finRes.json();
+        setFinRecs(finData);
       } catch {
         // silently fail
       }
@@ -251,7 +262,7 @@ export default function Dashboard() {
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 mb-4">
                     <Brain size={16} className="text-[#58cc02]" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/50">AI Insight</span>
+                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/50">AI Shopping Insight</span>
                   </div>
                   <p className="text-white/80 text-sm leading-relaxed font-medium italic">
                     "{recommendations.shopping_summary.advice}"
@@ -263,6 +274,28 @@ export default function Dashboard() {
                     Analyse Full Cart
                   </Link>
                 </div>
+              </div>
+            )}
+
+            {/* Financial Product Teaser */}
+            {finRecs?.recommendations?.[0] && (
+              <div className="bg-white border border-border rounded-2xl p-6 shadow-sm hover:border-secondary transition-all group">
+                <div className="flex items-center gap-2 mb-4">
+                  <Sparkles size={16} className="text-secondary" />
+                  <span className="text-[9px] font-black uppercase tracking-[0.3em] text-on-surface-variant">Top Wealth Opportunity</span>
+                </div>
+                <h4 className="font-headline font-black text-primary tracking-tight text-sm mb-1">{finRecs.recommendations[0].name}</h4>
+                <p className="text-[10px] font-bold text-secondary uppercase tracking-widest mb-3">{finRecs.recommendations[0].type}</p>
+                <div className="flex items-center gap-2 text-[11px] font-medium text-on-surface-variant leading-relaxed">
+                  <Target size={12} className="text-secondary" />
+                  {finRecs.recommendations[0].match_score}% Profile Match
+                </div>
+                <Link
+                  to="/"
+                  className="mt-6 flex items-center justify-center gap-2 w-full py-3 border border-border rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-primary hover:border-secondary hover:text-secondary transition-all"
+                >
+                  View Recommendations <ArrowRight size={12} />
+                </Link>
               </div>
             )}
           </div>
