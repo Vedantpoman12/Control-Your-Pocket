@@ -344,38 +344,7 @@ export default function CartTracker() {
                       </div>
                     )}
 
-                    {/* Savings recommendations */}
-                    {analysis.recs.length > 0 && (
-                      <div>
-                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40 mb-4">
-                          Savings Opportunities
-                        </p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {analysis.recs.map((rec, i) => (
-                            <motion.div
-                              key={i}
-                              initial={{ opacity: 0, scale: 0.97 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: 0.3 + i * 0.1 }}
-                              className="p-5 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 hover:border-[#58cc02]/30 transition-all"
-                            >
-                              <div className="flex items-start justify-between gap-2 mb-3">
-                                <h4 className="font-black text-sm text-white tracking-tight leading-snug">
-                                  {rec.title}
-                                </h4>
-                                <span className="text-[#58cc02] font-black text-[10px] uppercase tracking-widest bg-[#58cc02]/10 px-2 py-1 rounded-lg shrink-0 border border-[#58cc02]/20 whitespace-nowrap">
-                                  {rec.impact}
-                                </span>
-                              </div>
-                              <div className="flex items-start gap-2">
-                                <TrendingDown size={11} className="text-white/30 shrink-0 mt-0.5" />
-                                <p className="text-white/40 text-[11px] leading-relaxed italic">{rec.reason}</p>
-                              </div>
-                            </motion.div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+
 
                     {/* Re-analyse */}
                     <button
