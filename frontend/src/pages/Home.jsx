@@ -1,119 +1,64 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, ShieldAlert, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowRight, ShoppingCart, Sparkles, Tag, Brain } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="home fade-up">
-      <div className="hero">
-        <div className="hero-badge">AI-Powered Financial Intelligence</div>
-        <h1 className="hero-title">
-          Master Your Wealth with <br />
-          <span className="gradient-text">Control Your Pocket.</span>
+    <div className="max-w-[1200px] mx-auto py-20 px-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      <div className="text-center max-w-[800px] mx-auto mb-24">
+        <div className="inline-block text-[0.7rem] font-bold uppercase tracking-[0.16em] px-4 py-1.5 rounded-full bg-bg-3 border border-border text-accent-2 mb-8">
+          Smart Shopping & Finance Intelligence
+        </div>
+        <h1 className="text-6xl font-black leading-[1.1] tracking-tight mb-6">
+          Control Your Pocket with <br />
+          <span className="bg-gradient-to-r from-accent to-accent-2 bg-clip-text text-transparent">Product Intelligence.</span>
         </h1>
-        <p className="hero-subtitle">
-          Discover mutual funds, insurance, credit cards, and loans perfectly matched to your real-world risk profile, spending habits, and CIBIL score.
+        <p className="text-xl text-text-muted mb-12 max-w-[600px] mx-auto">
+          Input your daily shopping cart or monthly products. We'll analyze your spending and recommend 
+          smarter alternatives to maximize your savings.
         </p>
-        <div className="hero-actions">
-          <Link to="/profile" className="btn btn-primary" style={{ padding: '16px 32px', fontSize: '1.05rem' }}>
-            Get My Recommendations <ArrowRight size={18} />
+        <div className="flex justify-center gap-4">
+          <Link to="/cart" className="px-8 py-4 bg-accent hover:bg-accent-2 text-white font-bold text-lg rounded-xl flex items-center gap-2 transition-all shadow-xl">
+            Build My Smart Cart <ArrowRight size={18} />
           </Link>
-          <Link to="/products" className="btn btn-outline" style={{ padding: '16px 32px', fontSize: '1.05rem' }}>
-            Browse Catalog
+          <Link to="/profile" className="px-8 py-4 border-2 border-border hover:bg-white/5 text-text font-bold text-lg rounded-xl transition-all">
+            Setup Profile
           </Link>
         </div>
       </div>
 
-      <div className="features">
-        <div className="card feature-card fade-up" style={{ animationDelay: '0.1s' }}>
-          <div className="feature-icon"><ShieldAlert size={28} /></div>
-          <h3>Risk-Aware Matching</h3>
-          <p>We analyze your income and CIBIL score to calculate a true risk profile, matching you with products you actually qualify for.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-bg-2 border border-border rounded-3xl p-10 hover:-translate-y-2 transition-all duration-300">
+          <div className="w-16 h-16 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mb-6">
+            <ShoppingCart size={28} />
+          </div>
+          <h3 className="text-xl font-bold mb-3">Monthly Cart Tracking</h3>
+          <p className="text-text-muted leading-relaxed">Put your daily shopping items or monthly groceries. We track the price and quantity to understand your consumption patterns.</p>
         </div>
-        <div className="card feature-card fade-up" style={{ animationDelay: '0.2s' }}>
-          <div className="feature-icon"><Sparkles size={28} /></div>
-          <h3>Smart Credit Cards</h3>
-          <p>Tell us where you spend most, and we'll scan 300+ Indian credit cards to find the one with the maximum reward multiplier for you.</p>
+
+        <div className="bg-bg-2 border border-border rounded-3xl p-10 hover:-translate-y-2 transition-all duration-300">
+          <div className="w-16 h-16 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mb-6">
+            <Tag size={28} />
+          </div>
+          <h3 className="text-xl font-bold mb-3">Optimization Engine</h3>
+          <p className="text-text-muted leading-relaxed">Our AI scans for cheaper, bulk, or refill-based alternatives for the products you use most, saving you thousands every month.</p>
         </div>
-        <div className="card feature-card fade-up" style={{ animationDelay: '0.3s' }}>
-          <div className="feature-icon"><TrendingUp size={28} /></div>
-          <h3>Explainable AI</h3>
-          <p>See exactly why a product was recommended. Our SHAP-powered engine provides full transparency into your risk score factors.</p>
+
+        <div className="bg-bg-2 border border-border rounded-3xl p-10 hover:-translate-y-2 transition-all duration-300">
+          <div className="w-16 h-16 rounded-2xl bg-accent/10 text-accent flex items-center justify-center mb-6">
+            <Brain size={28} />
+          </div>
+          <h3 className="text-xl font-bold mb-3">Consumption Insights</h3>
+          <p className="text-text-muted leading-relaxed">Get personalized advice on how changing small shopping habits can bridge the gap in your monthly savings goals.</p>
+        </div>
+
+        <div className="bg-bg-2 border border-border rounded-3xl p-10 hover:-translate-y-2 transition-all duration-300">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-6">
+            <Sparkles size={28} />
+          </div>
+          <h3 className="text-xl font-bold mb-3">Privacy-First AI</h3>
+          <p className="text-text-muted leading-relaxed">Your shopping data stays yours. Our local intelligence runs directly on your machine to give you secure, private financial advice.</p>
         </div>
       </div>
-
-      <style>{`
-        .home {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 80px 24px;
-        }
-        .hero {
-          text-align: center;
-          max-width: 800px;
-          margin: 0 auto 100px;
-        }
-        .hero-badge {
-          display: inline-block;
-          font-size: 0.75rem;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.1em;
-          padding: 6px 16px;
-          border-radius: 999px;
-          background: var(--bg-3);
-          border: 1px solid var(--border-2);
-          color: var(--accent-2);
-          margin-bottom: 32px;
-        }
-        .hero-title {
-          font-size: 4rem;
-          font-weight: 900;
-          line-height: 1.1;
-          letter-spacing: -0.03em;
-          margin-bottom: 24px;
-        }
-        .hero-subtitle {
-          font-size: 1.25rem;
-          color: var(--text-muted);
-          margin-bottom: 48px;
-          max-width: 600px;
-          margin-left: auto;
-          margin-right: auto;
-        }
-        .hero-actions {
-          display: flex;
-          justify-content: center;
-          gap: 16px;
-        }
-        .features {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 24px;
-        }
-        .feature-card {
-          padding: 40px 32px;
-          transition: transform var(--t);
-        }
-        .feature-card:hover {
-          transform: translateY(-5px);
-        }
-        .feature-icon {
-          width: 64px; height: 64px;
-          border-radius: 16px;
-          background: rgba(124, 111, 255, 0.1);
-          color: var(--accent);
-          display: flex; align-items: center; justify-content: center;
-          margin-bottom: 24px;
-        }
-        .feature-card h3 {
-          font-size: 1.4rem;
-          font-weight: 700;
-          margin-bottom: 12px;
-        }
-        .feature-card p {
-          color: var(--text-muted);
-        }
-      `}</style>
     </div>
   );
 }

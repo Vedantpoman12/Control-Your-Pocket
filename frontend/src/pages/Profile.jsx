@@ -1,22 +1,39 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings2, ArrowRight } from 'lucide-react';
+import { Wallet, TrendingUp, ArrowRight, CheckCircle, User, ShieldCheck } from 'lucide-react';
+import { useCartStore } from '../store/useCartStore';
+import PageTransition from '../components/PageTransition';
+import { motion } from 'framer-motion';
 
 export default function Profile() {
   const navigate = useNavigate();
+  const { user, fetchUser } = useCartStore();
   const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [formData, setFormData] = useState({
-    age: 28,
     monthly_income: 60000,
-    credit_score: 720,
     savings_ratio: 0.25,
-    spending_ratio: 0.40,
-    dependents: 1,
-    education: "Graduate",
-    self_employed: false,
-    top_spending_category: "Shopping",
-    max_card_fee: 5000
+    is_student: false,
+    gender: "Other"
   });
+
+  useEffect(() => {
+    const load = async () => {
+      await fetchUser();
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        monthly_income: user.monthly_income,
+        savings_ratio: user.savings_ratio,
+        is_student: user.is_student || false,
+        gender: user.gender || "Other"
+      });
+    }
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -30,140 +47,103 @@ export default function Profile() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/recommend', {
+      const res = await fetch('http://localhost:5000/api/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
-      const data = await res.json();
-      localStorage.setItem('dashboard_data', JSON.stringify(data));
-      navigate('/dashboard');
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => {
+          setSaved(false);
+          navigate('/');
+        }, 1500);
+      }
     } catch (err) {
-      alert("Error connecting to backend API.");
+      alert("Error saving profile.");
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="profile-page fade-up">
-      <div className="page-header">
-        <h1>Your Financial Profile</h1>
-        <p>Help us understand your financial health to generate AI-driven personalized recommendations.</p>
+    <PageTransition>
+      <div className="max-w-[750px] mx-auto space-y-10 pb-20">
+        <header className="border-b border-border pb-8">
+           <div className="flex items-center gap-4 mb-3">
+              <div className="w-11 h-11 bg-primary/5 rounded-2xl flex items-center justify-center">
+                 <User size={22} className="text-primary" />
+              </div>
+              <h1 className="text-4xl font-black text-primary font-headline tracking-tighter">My Profile</h1>
+           </div>
+           <p className="text-on-surface-variant font-medium">Set up your financial profile to get personalized recommendations.</p>
+        </header>
+
+        <motion.form 
+          className="bg-white border border-border rounded-2xl p-10 shadow-sm" 
+          onSubmit={handleSubmit}
+          layout
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+             {/* Personal Info */}
+             <div className="space-y-8">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant border-b border-border pb-3 mb-4">Personal Info</h3>
+                <div className="flex flex-col gap-2">
+                   <label className="text-[10px] font-black text-primary uppercase tracking-widest pl-1">Gender</label>
+                   <select name="gender" className="w-full p-4 bg-surface-container-low border border-border rounded-xl text-sm font-bold text-primary outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/5 transition-all" value={formData.gender} onChange={handleChange}>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                      <option value="Prefer not to say">Prefer not to say</option>
+                   </select>
+                </div>
+                <div className="flex items-center gap-4 p-4 bg-surface-container-low border border-border rounded-xl group hover:border-secondary transition-all">
+                   <input type="checkbox" id="is_student" name="is_student" checked={formData.is_student} onChange={handleChange} className="w-5 h-5 accent-secondary"/>
+                   <label htmlFor="is_student" className="text-sm font-bold text-primary cursor-pointer group-hover:text-secondary transition-colors">I am a Student</label>
+                </div>
+             </div>
+
+             {/* Financial Info */}
+             <div className="space-y-8">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-on-surface-variant border-b border-border pb-3 mb-4">Financial Info</h3>
+                <div className="flex flex-col gap-2">
+                   <div className="flex justify-between items-center px-1">
+                      <label className="text-[10px] font-black text-primary uppercase tracking-widest">Monthly Income (₹)</label>
+                      <Wallet size={16} className="text-on-surface-variant" />
+                   </div>
+                   <input type="number" name="monthly_income" className="w-full p-4 bg-surface-container-low border border-border rounded-xl text-sm font-black text-primary outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/5 transition-all" value={formData.monthly_income} onChange={handleChange} required min="1000"/>
+                </div>
+                <div className="flex flex-col gap-2">
+                   <div className="flex justify-between items-center px-1">
+                      <label className="text-[10px] font-black text-primary uppercase tracking-widest">Savings Ratio</label>
+                      <TrendingUp size={16} className="text-on-surface-variant" />
+                   </div>
+                   <input type="number" step="0.01" name="savings_ratio" className="w-full p-4 bg-surface-container-low border border-border rounded-xl text-sm font-black text-primary outline-none focus:border-secondary focus:ring-4 focus:ring-secondary/5 transition-all" value={formData.savings_ratio} onChange={handleChange} required min="0" max="1"/>
+                   <div className="flex justify-between text-[9px] font-bold text-on-surface-variant/60 tracking-widest mt-1 px-1">
+                      <span>0% (None)</span>
+                      <span>100% (All)</span>
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          <div className="mt-12 pt-8 border-t border-border flex items-center justify-between gap-6">
+             <div className="flex items-center gap-3 text-secondary">
+                <ShieldCheck size={20} />
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Data stays local</span>
+             </div>
+             <button type="submit" className="min-w-[220px] bg-primary text-white py-4 rounded-xl text-[10px] font-black uppercase tracking-[0.3em] hover:bg-[#001f4d] transition-all shadow-xl flex justify-center items-center gap-3 disabled:opacity-50 active:scale-95" disabled={loading || saved}>
+               {loading ? (
+                 <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+               ) : saved ? (
+                 <><CheckCircle size={18}/> Saved!</>
+               ) : (
+                 <>Save Profile <ArrowRight size={18}/></>
+               )}
+             </button>
+          </div>
+        </motion.form>
       </div>
-
-      <form className="card profile-form" onSubmit={handleSubmit}>
-        <div className="form-grid">
-          {/* Core Info */}
-          <div className="form-section">
-            <h3 className="section-label"><Settings2 size={12}/> Core Demographics</h3>
-            <div className="form-group">
-              <label className="form-label">Age</label>
-              <input type="number" name="age" className="form-input" value={formData.age} onChange={handleChange} required min="18" max="100"/>
-            </div>
-            <div className="form-group" style={{marginTop: '16px'}}>
-              <label className="form-label">Education</label>
-              <select name="education" className="form-input" value={formData.education} onChange={handleChange}>
-                <option value="Graduate">Graduate</option>
-                <option value="Not Graduate">Not Graduate</option>
-              </select>
-            </div>
-            <div className="form-group" style={{marginTop: '16px', flexDirection: 'row', alignItems: 'center'}}>
-              <input type="checkbox" name="self_employed" id="self_employed" checked={formData.self_employed} onChange={handleChange}/>
-              <label htmlFor="self_employed" style={{fontSize: '0.9rem'}}>Self Employed</label>
-            </div>
-            <div className="form-group" style={{marginTop: '16px'}}>
-              <label className="form-label">Dependents</label>
-              <input type="number" name="dependents" className="form-input" value={formData.dependents} onChange={handleChange} required min="0"/>
-            </div>
-          </div>
-
-          {/* Finances */}
-          <div className="form-section">
-            <h3 className="section-label"><Settings2 size={12}/> Financial Health</h3>
-            <div className="form-group">
-              <label className="form-label">Monthly Income (Rs)</label>
-              <input type="number" name="monthly_income" className="form-input" value={formData.monthly_income} onChange={handleChange} required min="1000"/>
-            </div>
-            <div className="form-group" style={{marginTop: '16px'}}>
-              <label className="form-label">CIBIL Score</label>
-              <input type="number" name="credit_score" className="form-input" value={formData.credit_score} onChange={handleChange} required min="300" max="900"/>
-            </div>
-            <div className="form-group" style={{marginTop: '16px'}}>
-              <label className="form-label">Savings Ratio (0-1)</label>
-              <input type="number" step="0.01" name="savings_ratio" className="form-input" value={formData.savings_ratio} onChange={handleChange} required min="0" max="1"/>
-            </div>
-            <div className="form-group" style={{marginTop: '16px'}}>
-              <label className="form-label">Debt-to-Income / Spending (0-5)</label>
-              <input type="number" step="0.01" name="spending_ratio" className="form-input" value={formData.spending_ratio} onChange={handleChange} required min="0" max="5"/>
-            </div>
-          </div>
-
-          {/* Credit Card Preferences */}
-          <div className="form-section">
-            <h3 className="section-label"><Settings2 size={12}/> Credit Card Preferences</h3>
-            <div className="form-group">
-              <label className="form-label">Top Spending Category</label>
-              <select name="top_spending_category" className="form-input" value={formData.top_spending_category} onChange={handleChange}>
-                <option value="Shopping">Shopping</option>
-                <option value="Dining">Dining</option>
-                <option value="Travel">Travel</option>
-                <option value="Fuel">Fuel</option>
-                <option value="Groceries">Groceries</option>
-              </select>
-            </div>
-            <div className="form-group" style={{marginTop: '16px'}}>
-              <label className="form-label">Maximum Annual Card Fee (Rs)</label>
-              <input type="number" name="max_card_fee" className="form-input" value={formData.max_card_fee} onChange={handleChange} required min="0"/>
-            </div>
-          </div>
-        </div>
-
-        <div className="form-footer">
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? <div className="spinner" style={{width: '20px', height: '20px', borderWidth: '2px'}}></div> : <>Analyze Profile <ArrowRight size={16}/></>}
-          </button>
-        </div>
-      </form>
-
-      <style>{`
-        .profile-page {
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 60px 24px;
-        }
-        .page-header {
-          text-align: center;
-          margin-bottom: 48px;
-        }
-        .page-header h1 {
-          font-size: 2.5rem;
-          font-weight: 800;
-          margin-bottom: 12px;
-        }
-        .page-header p {
-          color: var(--text-muted);
-          font-size: 1.1rem;
-        }
-        .profile-form {
-          padding: 40px;
-        }
-        .form-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 40px;
-          margin-bottom: 40px;
-        }
-        .form-section {
-          display: flex;
-          flex-direction: column;
-        }
-        .form-footer {
-          display: flex;
-          justify-content: flex-end;
-          border-top: 1px solid var(--border);
-          padding-top: 24px;
-        }
-      `}</style>
-    </div>
+    </PageTransition>
   );
 }

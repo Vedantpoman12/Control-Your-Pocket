@@ -1,158 +1,273 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
-import RiskGauge from '../components/RiskGauge';
-import ProductCard from '../components/ProductCard';
-import CreditCardCard from '../components/CreditCardCard';
-import { LayoutDashboard, CreditCard, Box, PieChart } from 'lucide-react';
-
-ChartJS.register(ArcElement, Tooltip, Legend);
+import { useCartStore } from '../store/useCartStore';
+import {
+  TrendingUp, ShieldCheck, Wallet, ShoppingCart,
+  IndianRupee, PiggyBank, Target, ArrowRight, Brain
+} from 'lucide-react';
+import PageTransition from '../components/PageTransition';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const [data, setData] = useState(null);
+  const { cart, user, fetchUser, fetchCart } = useCartStore();
+  const [recommendations, setRecommendations] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const raw = localStorage.getItem('dashboard_data');
-    if (!raw) {
-      navigate('/profile');
-    } else {
-      setData(JSON.parse(raw));
-    }
-  }, [navigate]);
+    const init = async () => {
+      await fetchUser();
+      await fetchCart();
 
-  if (!data) return null;
+      try {
+        const res = await fetch('http://localhost:5000/api/recommend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        setRecommendations(data);
+      } catch {
+        // silently fail
+      }
+      setLoading(false);
+    };
+    init();
+  }, []);
 
-  const chartData = {
-    labels: ['Housing', 'Food', 'Transport', 'Shopping', 'Other'],
-    datasets: [
-      {
-        data: [35, 20, 15, 20, 10], // Placeholder distribution
-        backgroundColor: [
-          '#7c6fff', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'
-        ],
-        borderWidth: 0,
-      },
-    ],
-  };
+  if (loading || !user)
+    return (
+      <div className="h-[80vh] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-white/10 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
 
-  const chartOptions = {
-    plugins: {
-      legend: { position: 'bottom', labels: { color: '#8888a8', padding: 20 } }
-    },
-    cutout: '75%',
-  };
+  const total = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const income = user.monthly_income || 60000;
+  const savingsRatio = user.savings_ratio || 0.25;
+  const targetSavings = income * (user.is_student ? 0.15 : 0.3);
+  const actualSavings = income * savingsRatio;
+  const spendBudget = income - actualSavings;
+  const cartPercent = spendBudget > 0 ? Math.min(100, Math.round((total / spendBudget) * 100)) : 0;
+
+  // Build category breakdown from actual cart
+  const categoryMap = {};
+  cart.forEach((item) => {
+    const cat = item.category || 'General';
+    categoryMap[cat] = (categoryMap[cat] || 0) + item.price * item.quantity;
+  });
+  const categories = Object.entries(categoryMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+
+  const catColors = ['#7c6fff', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4'];
 
   return (
-    <div className="dashboard fade-up">
-      <div className="dash-header">
-        <h1>Your Financial <span className="gradient-text">Dashboard</span></h1>
-        <p>AI-tailored recommendations based on your unique profile.</p>
-      </div>
+    <PageTransition>
+      <div className="space-y-10">
 
-      <div className="dash-grid-top">
-        {/* Risk Panel */}
-        <div className="dash-panel">
-          <RiskGauge prediction={data.risk_prediction} />
-        </div>
+        {/* Page Header */}
+        <header className="border-b border-border pb-8">
+          <span className="text-secondary font-black text-[10px] uppercase tracking-[0.3em] mb-2 block">
+            Financial Overview
+          </span>
+          <h1 className="text-4xl font-black text-primary font-headline tracking-tighter">
+            Dashboard
+          </h1>
+          <p className="text-on-surface-variant font-medium mt-2">
+            Your spending snapshot — income, savings, and cart at a glance.
+          </p>
+        </header>
 
-        {/* Expenses Panel (Mocked for dashboard structure) */}
-        <div className="dash-panel card p-6">
-          <div className="mb-4">
-            <h3 className="section-label"><PieChart size={14}/> Expense Distribution</h3>
-          </div>
-          <div style={{ height: '220px', display: 'flex', justifyContent: 'center' }}>
-            <Doughnut data={chartData} options={chartOptions} />
-          </div>
-        </div>
-      </div>
-
-      {/* Main Recommendations */}
-      <div className="dash-section">
-        <div className="section-header">
-          <h2><Box size={20} color="var(--accent)"/> Top Product Matches</h2>
-          <Link to="/products" className="view-all">Browse all</Link>
-        </div>
-        <div className="products-grid">
-          {data.recommendations?.map((item, i) => (
-            <ProductCard key={item.product_id} item={item} index={i} />
+        {/* Stats Grid */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {[
+            {
+              icon: <Wallet size={20} />,
+              label: 'Monthly Income',
+              value: `₹${income.toLocaleString()}`,
+              color: 'text-primary',
+              bg: 'bg-primary/5',
+            },
+            {
+              icon: <PiggyBank size={20} />,
+              label: 'Savings Target',
+              value: `₹${targetSavings.toLocaleString()}`,
+              sub: `${Math.round((user.is_student ? 0.15 : 0.3) * 100)}% of income`,
+              color: 'text-secondary',
+              bg: 'bg-secondary/10',
+            },
+            {
+              icon: <ShoppingCart size={20} />,
+              label: 'Cart Total',
+              value: `₹${total.toLocaleString()}`,
+              sub: `${cartPercent}% of spend budget`,
+              color: 'text-[#7c6fff]',
+              bg: 'bg-[#7c6fff]/10',
+            },
+            {
+              icon: <Target size={20} />,
+              label: 'Savings Gap',
+              value:
+                actualSavings >= targetSavings
+                  ? 'On Track'
+                  : `₹${Math.round(targetSavings - actualSavings).toLocaleString()}`,
+              sub: actualSavings >= targetSavings ? 'Great work!' : 'Short of target',
+              color: actualSavings >= targetSavings ? 'text-secondary' : 'text-[#f59e0b]',
+              bg: actualSavings >= targetSavings ? 'bg-secondary/10' : 'bg-[#f59e0b]/10',
+            },
+          ].map((card, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              className="bg-white border border-border rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-10 h-10 rounded-xl ${card.bg} flex items-center justify-center ${card.color}`}>
+                  {card.icon}
+                </div>
+                <TrendingUp size={14} className="text-border group-hover:text-secondary transition-colors" />
+              </div>
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-on-surface-variant mb-1">
+                {card.label}
+              </p>
+              <p className={`text-2xl font-black font-headline tracking-tight ${card.color}`}>
+                {card.value}
+              </p>
+              {card.sub && (
+                <p className="text-[10px] text-on-surface-variant font-medium mt-1">{card.sub}</p>
+              )}
+            </motion.div>
           ))}
-          {(!data.recommendations || data.recommendations.length === 0) && (
-            <div className="empty-state">No matching products found for this profile.</div>
-          )}
-        </div>
-      </div>
+        </section>
 
-      {/* Credit Card Recommendations */}
-      <div className="dash-section">
-        <div className="section-header">
-          <h2><CreditCard size={20} color="var(--accent)"/> Smart Credit Cards</h2>
-          <span className="subtitle">Based on your top spending category</span>
-        </div>
-        <div className="cards-grid">
-          {data.card_recommendations?.map((card, i) => (
-            <CreditCardCard key={i} card={card} index={i} />
-          ))}
-        </div>
-      </div>
+        {/* Two Column: Chart + Profile */}
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-      <style>{`
-        .dashboard {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 60px 24px;
-        }
-        .dash-header {
-          margin-bottom: 40px;
-        }
-        .dash-header h1 {
-          font-size: 2.5rem; font-weight: 800; margin-bottom: 8px;
-        }
-        .dash-header p {
-          color: var(--text-muted); font-size: 1.1rem;
-        }
-        .dash-grid-top {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 24px;
-          margin-bottom: 48px;
-        }
-        .dash-panel {
-          height: 100%;
-        }
-        .p-6 { padding: 24px; }
-        .mb-4 { margin-bottom: 16px; }
-        
-        .dash-section { margin-bottom: 60px; }
-        .section-header {
-          display: flex; justify-content: space-between; align-items: flex-end;
-          margin-bottom: 24px; padding-bottom: 12px;
-          border-bottom: 1px solid var(--border);
-        }
-        .section-header h2 {
-          font-size: 1.5rem; font-weight: 700;
-          display: flex; align-items: center; gap: 12px;
-        }
-        .subtitle { font-size: 0.9rem; color: var(--text-muted); }
-        .view-all { font-size: 0.9rem; color: var(--accent-2); font-weight: 600; }
-        
-        .products-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-          gap: 24px;
-        }
-        .cards-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 24px;
-        }
-        .empty-state {
-          grid-column: 1 / -1;
-          padding: 40px; text-align: center; color: var(--text-muted);
-          background: var(--bg-2); border-radius: var(--radius); border: 1px dashed var(--border);
-        }
-      `}</style>
-    </div>
+          {/* Spending Breakdown */}
+          <div className="lg:col-span-7 bg-white border border-border rounded-2xl p-8 shadow-sm">
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <h3 className="text-xl font-black text-primary font-headline tracking-tight">
+                  Spending Breakdown
+                </h3>
+                <p className="text-xs text-on-surface-variant mt-1">By category from your cart</p>
+              </div>
+              <Link
+                to="/"
+                className="text-[10px] font-black uppercase tracking-[0.2em] text-secondary hover:text-primary transition-colors flex items-center gap-1"
+              >
+                Go to Cart <ArrowRight size={12} />
+              </Link>
+            </div>
+
+            {categories.length === 0 ? (
+              <div className="py-16 text-center">
+                <ShoppingCart size={36} className="mx-auto text-border mb-4" />
+                <p className="text-sm text-on-surface-variant font-medium">
+                  No items in cart yet.{' '}
+                  <Link to="/" className="text-secondary font-bold underline">
+                    Add items
+                  </Link>{' '}
+                  to see your breakdown.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {categories.map(([cat, amount], i) => {
+                  const pct = total > 0 ? Math.round((amount / total) * 100) : 0;
+                  return (
+                    <motion.div
+                      key={cat}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.08 }}
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-black text-primary uppercase tracking-[0.1em] flex items-center gap-2">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full"
+                            style={{ backgroundColor: catColors[i] || '#94a3b8' }}
+                          />
+                          {cat}
+                        </span>
+                        <span className="text-xs font-bold text-on-surface-variant">
+                          ₹{amount.toLocaleString()} ({pct}%)
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-surface-container rounded-full overflow-hidden">
+                        <motion.div
+                          className="h-full rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.8, delay: i * 0.1 }}
+                          style={{ backgroundColor: catColors[i] || '#94a3b8' }}
+                        />
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Profile Summary + Quick Actions */}
+          <div className="lg:col-span-5 flex flex-col gap-6">
+
+            {/* User info */}
+            <div className="bg-white border border-border rounded-2xl p-8 shadow-sm">
+              <h3 className="text-sm font-black text-primary font-headline uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                <ShieldCheck size={16} className="text-secondary" />
+                Profile Summary
+              </h3>
+              <div className="space-y-4">
+                {[
+                  { label: 'Status', value: user.is_student ? 'Student' : 'Professional' },
+                  { label: 'Gender', value: user.gender || 'Not set' },
+                  { label: 'Income', value: `₹${income.toLocaleString()}/month` },
+                  { label: 'Savings Ratio', value: `${Math.round(savingsRatio * 100)}%` },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex justify-between items-center py-3 border-b border-border last:border-0">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                      {label}
+                    </span>
+                    <span className="text-sm font-bold text-primary">{value}</span>
+                  </div>
+                ))}
+              </div>
+              <Link
+                to="/profile"
+                className="mt-6 block text-center w-full py-3 bg-surface-container-low border border-border rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-primary hover:bg-primary hover:text-white transition-all"
+              >
+                Edit Profile
+              </Link>
+            </div>
+
+            {/* AI recommendation teaser */}
+            {recommendations?.shopping_summary?.advice && (
+              <div className="bg-[#00193c] text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-bl-full" />
+                <div className="relative z-10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Brain size={16} className="text-[#58cc02]" />
+                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/50">AI Insight</span>
+                  </div>
+                  <p className="text-white/80 text-sm leading-relaxed font-medium italic">
+                    "{recommendations.shopping_summary.advice}"
+                  </p>
+                  <Link
+                    to="/"
+                    className="mt-6 block text-center w-full py-3 bg-white/10 border border-white/20 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-white hover:bg-white hover:text-[#00193c] transition-all"
+                  >
+                    Analyse Full Cart
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+    </PageTransition>
   );
 }
