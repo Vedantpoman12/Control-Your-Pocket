@@ -8,6 +8,20 @@ export const useCartStore = create((set, get) => ({
   user: null,
   loading: false,
   error: null,
+  notification: null,
+  notificationsList: [],
+
+  setNotification: (msg) => {
+    set((state) => ({ 
+      notification: msg,
+      notificationsList: [{ id: Date.now(), msg, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }, ...state.notificationsList].slice(0, 10)
+    }));
+    setTimeout(() => {
+      set((state) => (state.notification === msg ? { notification: null } : state));
+    }, 3000);
+  },
+
+  clearNotifications: () => set({ notificationsList: [] }),
 
   fetchUser: async () => {
     try {
@@ -32,6 +46,7 @@ export const useCartStore = create((set, get) => ({
     try {
       await axios.post(`${API_BASE}/cart`, item);
       get().fetchCart();
+      get().setNotification(`Added ${item.name} to cart`);
     } catch (err) {
       set({ error: "Failed to add item" });
     }
@@ -41,6 +56,7 @@ export const useCartStore = create((set, get) => ({
     try {
       await axios.post(`${API_BASE}/cart/remove`, { id });
       get().fetchCart();
+      get().setNotification("Removed item from cart");
     } catch (err) {
       set({ error: "Failed to remove item" });
     }
